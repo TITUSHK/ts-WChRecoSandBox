@@ -1,0 +1,73 @@
+Reconstruction for TITUS
+
+
+
+To build:
+In WChSandBox directory
+ source setupLite.sh
+In analysis directory
+ make
+Load the libWCLAnalysis.so and run macros in ROOT
+
+
+
+To run the reconstruction there are two steps:
+1. Photon mask
+2. Event reconstruction
+
+
+
+Photon Mask: scripts/PhotonMask.C
+Select photons from WChSandBox output which are detected according to detector configuration.
+void PhotonMask(
+  TString filename,     // path to WChSandBox FullEvent.root file
+  TString genfilename,  // path to WChSandBox generatorcardfile.root file
+  TStraing outfilename  // path to photon mask output file
+)
+Values at start of script should be modified according to detector configuration
+
+
+Event Reconstruction: scripts/SandFit.C
+Perform event reconstruction on output from photon mask.
+void SandFit(
+  TString filename,       // path to output of photon mask
+  TString genfilename,    // path to WChSandBox generatorcardfile.root file or "gun" for particle gun events
+  TString outfilename,    // path to reconstruction output file
+  TString lnLfilename,    // path to likelihood_tables.root 
+  TString lookupfilename, // path to energyLookups.root
+  int startEvent,         // number of first event to reconstruct
+  int maxEvents           // number of events to reconstruct
+)
+Low-E reconstruction code is in advanced_scripts/Low_E.C
+High-E reconstruction code is in advanced_scripts/High_E.cc, advanced_scripts/High_E.h
+
+The low-E reconstruction uses two variables which depend on detector: intercept and gradient.
+These values are obtained by generating electron particle gun with fixed known energy through the detector.
+By looking at the distribution of the number of PMT hits for different energies, a linear fit between energy and number of hits can be drawn.
+
+The following two files (which need to be generated for specific detectors) are required as part of the high-E reconstruction:
+
+likelihood_tables.root
+Contains the tables of likelihoods for photons observed at given distance and angle for given particle and kinetic energy.
+To generate this, use scripts/likelihoodTables.C with WChSandBox output for events generated from 50MeV to 1050MeV of Kinetic Energy.
+
+energyLookups.root
+Contains look-ups for the energy reconstruction and correction to vertex bias in the track direction.
+To generate this, first run WChSandBox ouput for large number of events through advanced_scripts/RecoForLookup.C,
+then use these files with scripts/EnergyLookups.C
+
+
+
+Known limitations / planned improvements:
+
+- Currently the photon mask accepts all photons with wavelength in the range 300-600nm. We plan to update this to adjust the QE according to wavelength.
+
+- The time of detection of a hit on a PMT is simply as a gaussian centred around the true time, with no accounting for multiple photons arriving at a PMT close in time (they will be treated as each producing one photoelectron, with individually smeared detection times).
+
+- The ring searching assumes all photonelectrons are part of an identified ring if they are detected by a PMT at a time within twice the timing resolution of the PMT. This has not been optimised and the factor of 2 probably needs tuning to improve ring counting performance.
+
+- There is a bias in the position of the vertex in the direction of the track which is corrected for before the likelihood fit. This does not affect the final reconstructed vertex position but since the correction is after the ring searching, the bias may limit its performance.
+
+- The energy reconstruction is currently based off a simple lookup dependant on total number of photoelectrons, reconstructed distance from the tank wall, energy, and particle hypothesis. This should be improved by including in the likelihood fit, however the normalisation of the number of photoelectrons expected in the likelihood tables does not seem to be correct so the energy cannot currently be left as a free parameter. For the same reason the likelihood fit uses only the proportion of hits at each PMT and not the actual number observed.
+
+- If there are multiple rings for an event which has enough hits to be passed to the high-E chain, but the ring itself does not have enough hits, it should be reconstructed using the low-E reconstruction tools, but currently it is still treated as high-E.
