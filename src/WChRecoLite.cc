@@ -9,28 +9,6 @@
 
 
 #include "WChRecoLite.hh"
-#include "TObject.h"
-#include "WCSimRecoDigit.hh"
-#include "WCSimRecoObjectTable.hh"
-#include "TTree.h"
-#include "TFile.h"
-#include "TH1F.h"
-#include "TDirectory.h"
-#include "TMath.h"
-#include "TVector3.h"
-#include "TMatrixD.h"
-#include "TError.h"
-#include "TMinuit.h"
-#include "TRandom.h"
-
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <cmath>
-#include <vector>
-#include <map>
-
-#include <math.h>
 
 //#include "help_func.C"
 
@@ -87,6 +65,7 @@ WChRecoLite::WChRecoLite()
     seedTime=0.;
 
     //this is for diagnostics, not finished yet
+    /*
     fFOM = new TFile("fFOM.root","recreate");
     hT = new TH1F("hT","hT",100,-10,10);
     hDT0 = new TH1F("hDT0","hDT0",100,-5,5);
@@ -96,13 +75,13 @@ WChRecoLite::WChRecoLite()
     hY = new TH1F("hY","hY",100,-550,550);
     hZ = new TH1F("hZ","hZ",100,-1100,1100);
     hFOM = new TH1F("hFOM","hFOM",50,100.,200.);
-
+*/
 }
 
 WChRecoLite::~WChRecoLite()
 {
     this->Reset();
-
+/*
     fFOM->Close();
     delete hT;
     delete hDT0;
@@ -111,6 +90,7 @@ WChRecoLite::~WChRecoLite()
     delete hY;
     delete hZ;
     delete hFOM;
+*/
 }
 
 
@@ -234,7 +214,6 @@ int WChRecoLite::FindVertex(Double_t x0, Double_t y0, Double_t z0, Double_t t0, 
                     Double_t xm = x0 + ctm*ax + bx;
                     Double_t ym = y0 + ctm*ay + by;
                     Double_t zm = z0 + ctm*az + bz;
-                    Bool_t foundVertexM = 0;
 
                     if( tm<t0 && tm<t1
                         && tm<t2 && tm<t3 ){
@@ -242,14 +221,12 @@ int WChRecoLite::FindVertex(Double_t x0, Double_t y0, Double_t z0, Double_t t0, 
                         vym = ym;
                         vzm = zm;
                         vtm = tm;
-                        foundVertexM = 1;
                     }
 
                     Double_t tp = t0 + ctp/c;
                     Double_t xp = x0 + ctp*ax + bx;
                     Double_t yp = y0 + ctp*ay + by;
                     Double_t zp = z0 + ctp*az + bz;
-                    Bool_t foundVertexP = 0;
 
                     if( tp<t0 && tp<t1
                         && tp<t2 && tp<t3 ){
@@ -257,7 +234,6 @@ int WChRecoLite::FindVertex(Double_t x0, Double_t y0, Double_t z0, Double_t t0, 
                         vyp = yp;
                         vzp = zp;
                         vtp = tp;
-                        foundVertexP = 1;
                     }
 
                 }
@@ -297,7 +273,7 @@ Int_t WChRecoLite::ChooseNextDigit(Double_t& xpos, Double_t& ypos, Double_t& zpo
 
     //  std::cout<<"I'm inside ChooseNextDitig"<<std::endl;
     // pseudo-random number generator
-    Int_t numEntries = vSeedDigitList.size();
+    Int_t numEntries = (Int_t) vSeedDigitList.size();
 /*  cout<<"fCounter = "<<fCounter<<"   fLastEntry = "<<fLastEntry<<endl;
   fCounter++;
   if( fCounter>=fNDigits ) fCounter = 0;
@@ -319,7 +295,7 @@ Int_t WChRecoLite::ChooseNextDigit(Double_t& xpos, Double_t& ypos, Double_t& zpo
     //  std::cout<<"fLastEntry = "<<fLastEntry<<"   r = "<<r<<"   numEntries = "<<numEntries<<std::endl;
 
     // return the new digit
-    fThisDigit = vSeedDigitList.at(fLastEntry);
+    fThisDigit = vSeedDigitList.at((unsigned long) fLastEntry);
     //  std::cout<<"fThisDigit = "<<fThisDigit<<std::endl;
     xpos = fDigitX[fThisDigit];
     ypos = fDigitY[fThisDigit];
@@ -444,7 +420,7 @@ Int_t WChRecoLite::CalcVertexSeeds()
 
 
         bool inside_det;
-        if(sqrt(fVtxX1*fVtxX1+fVtxY1*fVtxY1)<R_SPHERE && fVtxZ1<R_LENGTH) inside_det=true; else inside_det=false;
+        inside_det= sqrt(fVtxX1*fVtxX1+fVtxY1*fVtxY1)<R_SPHERE && fVtxZ1<R_LENGTH;
         // std::cout<<"Solution1: inside_det = "<<inside_det<<"  X = "<<fVtxX1<<"  Y = "<<fVtxY1<<"  Z = "<<fVtxZ1<<"  T = "<<fVtxTime1<<std::endl;
 //    if(!inside_det)
 //    {
@@ -462,7 +438,7 @@ Int_t WChRecoLite::CalcVertexSeeds()
         }
 
 
-        if(sqrt(fVtxX2*fVtxX2+fVtxY2*fVtxY2)<R_SPHERE && fVtxZ2<R_LENGTH) inside_det=true; else inside_det=false;
+        inside_det= sqrt(fVtxX2*fVtxX2+fVtxY2*fVtxY2)<R_SPHERE && fVtxZ2<R_LENGTH;
         // std::cout<<"Solution2: inside_det = "<<inside_det<<"  X = "<<fVtxX2<<"  Y = "<<fVtxY2<<"  Z = "<<fVtxZ2<<"  T = "<<fVtxTime2<<std::endl;
 //    if(!inside_det)
 //    {
@@ -562,7 +538,7 @@ void WChRecoLite::Amoeba(double p[5][4], double y[], int ndim, const double ftol
         nfunk += 2;
         ytry=Amotry(p,y,ndim,psum,ihi,-1.0);
         if (ytry <= y[ilo])
-            ytry=Amotry(p,y,ndim,psum,ihi,2.0);
+            Amotry(p,y,ndim,psum,ihi,2.0);
         else if (ytry >= y[inhi]) {
             ysave=y[ihi];
             ytry=Amotry(p,y,ndim,psum,ihi,0.5);
@@ -592,8 +568,7 @@ std::vector<double> fomarray;
 Int_t WChRecoLite::TimePropertiesLnL(double & vtx_time, double & fom)
 {
     double A = 1.0 / ( 2.0*TSIGMA*TMath::Sqrt(0.5*TMath::Pi()) );
-    double Preal=0.;
-    double P=0.;
+    double Preal;
     fom=0.;
     double chi2=0.;
     double ndof=0.0;
@@ -633,7 +608,6 @@ Int_t WChRecoLite::TimePropertiesLnL(double & vtx_time, double & fom)
 void WChRecoLite::FitPointTimePropertiesLnL(Double_t& fit_time, Double_t& fom)
 {
     Int_t err = 0;
-    Int_t flag = 0;
 
 //  Double_t seedTime = meanTime;
 
@@ -651,7 +625,7 @@ void WChRecoLite::FitPointTimePropertiesLnL(Double_t& fit_time, Double_t& fom)
     fMinuitTimeFit->SetFCN(vertex_time_lnl);
     fMinuitTimeFit->mnexcm("SET STR",arglist,1,err);
     fMinuitTimeFit->mnparm(0,"vtx_time",seedTime,0.1,-100.0,100.0,err);  //Negative times have to be possible since the true time is at zero
-    flag = fMinuitTimeFit->Migrad();
+    fMinuitTimeFit->Migrad();
     fMinuitTimeFit->GetParameter(0,fit_time,fitTimeErr);
 
     //  std::cout <<"fitTime = " << fit_time << ", fitTimeErr = " << fitTimeErr << std::endl;
@@ -662,8 +636,9 @@ void WChRecoLite::FitPointTimePropertiesLnL(Double_t& fit_time, Double_t& fom)
     return;
 }
 
-Int_t WChRecoLite::SelectBestSeed(int evt_num)
+Int_t WChRecoLite::SelectBestSeed()
 {
+/*
     std::ostringstream oss;
     oss<<evt_num;
     std::string iter_evt = oss.str();
@@ -676,7 +651,7 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
     TH1F* hy = (TH1F*) hY->Clone(("hY_"+iter_evt).c_str());
     TH1F* hz = (TH1F*) hZ->Clone(("hZ_"+iter_evt).c_str());
     TH1F* hfom = (TH1F*) hFOM->Clone(("hFOM_"+iter_evt).c_str());
-
+*/
     Int_t bestSeed = -1;
     Double_t bestFOM = -1.0;
 
@@ -690,11 +665,12 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
     {
         // vSeedVtxX.clear();
         // std::cout << "SEEDvtx0=" << vSeedVtxX[i] << std::endl;
+/*
         hx->Fill(vSeedVtxX[i]);
         hy->Fill(vSeedVtxY[i]);
         hz->Fill(vSeedVtxZ[i]);
         ht->Fill(vSeedVtxTime[i]);
-
+*/
         // loop over digits
         // ================
         double Swx=0.;
@@ -712,14 +688,14 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
             Double_t time1 = fDigitT[idigit] - vSeedVtxTime[i];
 
             double fPointResidual0 = time0 - ds/(C_VAC/N_REF);
-            double fPointResidual = time1 - ds/(C_VAC/N_REF);
-// TEMP test: use true velocity:
+            // TEMP test: use true velocity:
             // double fPointResidual0 = time0 - ds/fDigitV[idigit];
             // double fPointResidual = time - ds/fDigitV[idigit];
 //      cout<<"Lambda = "<<fDigitW[idigit]<<"   index_ref = "<<C_VAC/fDigitV[idigit]<<endl;
+/*
             hdt0->Fill(fPointResidual0);
             hdt->Fill(fPointResidual);
-
+*/
             fDelta.push_back(fPointResidual0);
             double weight = 1.0/(TSIGMA*TSIGMA);
             Swx += time1*weight; // here is some room for upgrade id TSIGMA is not always the same
@@ -734,7 +710,7 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
         double fom=0.;
         //    FitPointTimePropertiesLnL(vtx_time,fom); //do time fit
         TimePropertiesLnL(vtx_time,fom); //calculate fom for fitted time value (possibly this can be done during the fit)
-        hfom->Fill(fom);
+//        hfom->Fill(fom);
         // std::cout << "vSeedVtxX[i]:" << vSeedVtxX[i] << "  " << fom << "  " << fomtotal << std::endl;
 
         fomarray.push_back(fom);
@@ -760,7 +736,7 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
 
     }
     std::cout << "--------------------:" << weightedRecoX << "  " << weightedRecoY << "  " << weightedRecoZ << std::endl;
-
+/*
     fFOM->cd();
     ht->Write();
     hdt0->Write();
@@ -771,6 +747,7 @@ Int_t WChRecoLite::SelectBestSeed(int evt_num)
     hz->Write();
 
     hfom->Write();
+   */
     // hx->Fit("gaus");
     // hy->Fit("gaus");
     // hz->Fit("gaus");
@@ -782,11 +759,7 @@ double WChRecoLite::WeightedSumSeed(int xyz)//do select best seed first
 {
     if(xyz==0) return weightedRecoX;
     if(xyz==1) return weightedRecoY;
-    if(xyz==2) return weightedRecoZ;
-
-    // else{
-    //   continue;
-    // }
+    else return weightedRecoZ;
 }
 
 double WChRecoLite::MeanVertexSeed(int dir)
@@ -798,11 +771,12 @@ double WChRecoLite::MeanVertexSeed(int dir)
     else if(dir == 2) vSeedVtx=vSeedVtxZ;
     else if(dir == 3) vSeedVtx=vSeedVtxTime;
     else return 0;
-    int count = vSeedVtx.size();
+    int count = (int) vSeedVtx.size();
     for(int i =0; i< count; i++){
         meanVertex += vSeedVtx[i];
     }
     meanVertex /= count;
+    return meanVertex;
 }
 
 void WChRecoLite::SetDigits(std::vector<double> iDigitX,std::vector<double> iDigitY,std::vector<double> iDigitZ,std::vector<double> iDigitT,std::vector<double> iDigitQ,std::vector<double> iDigitPE,std::vector<double> iDigitW,std::vector<double> iDigitV,std::vector<double> iDelta,std::vector<int> iSeedDigitList)
@@ -827,7 +801,7 @@ std::vector<double> WChRecoLite::GetSeedVtx(int wvert){
     if(wvert==0) return vSeedVtxX;
     if(wvert==1) return vSeedVtxY;
     if(wvert==2) return vSeedVtxZ;
-    if(wvert==3) return vSeedVtxTime;
+    else return vSeedVtxTime;
 }
 
 void WChRecoLite::GetP(double p[5][4]){
@@ -855,7 +829,7 @@ double WChRecoLite::GetSumVtx(double vertex[4]){
     // double p[5][4];
     double sumvtx=0;
     double sphere_rad = 30.;
-    int j, k;
+    //int j, k;
     double ddx[vSeedVtxX.size()], ddy[vSeedVtxY.size()], ddz[vSeedVtxZ.size()], ddt[vSeedVtxTime.size()];
 
     // for(j=0;j<4;j++){

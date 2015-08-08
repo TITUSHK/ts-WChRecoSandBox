@@ -212,9 +212,9 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
     // double leptonMomY;
     // double leptonMomZ;
 
-    double totdiffxreco;
-    double totdiffyreco;
-    double totdiffzreco;
+    double totdiffxreco=0;
+    double totdiffyreco=0;
+    double totdiffzreco=0;
 /*
 //  double reconstructedmag;
 //  double reconstructeddirX;
@@ -261,7 +261,7 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
     fDigitPE.clear();
     vSeedDigitList.clear();
 
-    int LEntry[3]={0};
+    int LEntry[3]={0,0,0};
     // int thisdigit[3]={0};
 
 
@@ -329,9 +329,9 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
     {
         // std::cout << phot_parentid[iphot] << std::endl;
 
-        double t_flight = PE_time_v[iphot];
-        double xE = phot_xEnd[iphot]; double yE = phot_yEnd[iphot]; double zE = phot_zEnd[iphot];
-        double distSquare = xE*xE+yE*yE+zE*zE;
+//        double t_flight = PE_time_v[iphot];
+//        double xE = phot_xEnd[iphot]; double yE = phot_yEnd[iphot]; double zE = phot_zEnd[iphot];
+//        double distSquare = xE*xE+yE*yE+zE*zE;
 
 //        if( t_flight < (sqrt(distSquare)/(300./N_REF))+50.
 //            && t_flight > (sqrt(distSquare)/(300./N_REF))-5. && t_flight > 0. )
@@ -368,7 +368,7 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
 
 
     //now select the best vertex and save reco data
-    int best_seed = mRec->SelectBestSeed(evt);
+    int best_seed = mRec->SelectBestSeed();
     std::cout<<"best_seed = "<<best_seed<<"  vSeedVtxX.size() = "<<vSeedVtxX.size()<<std::endl;
     if(best_seed == -1) return;
 
@@ -451,16 +451,16 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
         double ypos[3];
         double zpos[3];
 
-        TRandom3 RND(counttriplet);
+        TRandom3 RND((UInt_t) counttriplet);
 
         Double_t r0 = RND.Rndm();
         Double_t r1 = RND.Rndm();
         Double_t r2 = RND.Rndm();
 
         // Int_t numEntries = vSeedDigitList.size();
-        LEntry[0] = floor(r0*vSeedDigitList.size());
-        LEntry[1] = floor(r1*vSeedDigitList.size());
-        LEntry[2] = floor(r2*vSeedDigitList.size());
+        LEntry[0] = TMath::FloorNint(r0*vSeedDigitList.size());
+        LEntry[1] = TMath::FloorNint(r1*vSeedDigitList.size());
+        LEntry[2] = TMath::FloorNint(r2*vSeedDigitList.size());
         // std::cout << LEntry0 << "  " << LEntry1 << "  " << LEntry2 << std::endl;
         if(LEntry[0]<0.||LEntry[0]>vSeedDigitList.size()) continue;//just to check
         if(LEntry[1]<0.||LEntry[1]>vSeedDigitList.size()) continue;

@@ -32,7 +32,7 @@ public:
     double *unhitPMTTimeRes;
     int nUnhitPMT;
     double *hitT;
-    double *hitRing;
+    int *hitRing;
     int *hitPMT;
     int nPEs;
     TH3D * electronPhotons;
@@ -42,7 +42,7 @@ public:
 
     HighEReco();
     ~HighEReco();
-    int FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double * &thetaPeaks, double * &phiPeaks, int * &ringPEs, int maxRings, bool useTrack = true);
+    int FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double * thetaPeaks, double * phiPeaks, int * ringPEs, int maxRings, bool useTrack = true);
     TH3D *FindTracks(double vtxX, double vtxY, double vtxZ);
     void PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &cherenkovAngle);
     void TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &recoDirPhi,
@@ -64,11 +64,11 @@ private:
     double PointChkvAngle(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt);
     double TrackChkvAngle(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, double tof);
     double PMTlnLikelihood(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu);
-    double LnLikelihood(const double *par, int ipnu, bool total, bool print=false);
+    double LnLikelihood(const double *par, int ipnu, bool total);
     double ElectronLnLikelihoodTotal(const double *par);
     double MuonLnLikelihoodTotal(const double *par);
-    double ElectronLnLikelihood2(const double *par, bool print);
-    double MuonLnLikelihood2(const double *par, bool print);
+    double ElectronLnLikelihood2(const double *par);
+    double MuonLnLikelihood2(const double *par);
     int FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, double &thetaPeak, double &phiPeak, int ringNumber = 1, bool useTrack = true);
 
 ClassDef(HighEReco,0)

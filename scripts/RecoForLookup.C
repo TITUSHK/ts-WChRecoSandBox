@@ -603,7 +603,7 @@ void RecoForLookup(TString filename = "out.root",
 
             highEReco.hitPMT = new int[highEReco.nPEs];
             highEReco.hitT = new double[highEReco.nPEs];
-            highEReco.hitRing = new double[highEReco.nPEs];
+            highEReco.hitRing = new int[highEReco.nPEs];
             // Loop over PEs create arrays of hit PMT, hit time, etc, for use later
             for (int iPE = 0, iPE2 = 0; iPE < totalPEs; iPE++) {
                 if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster +1) continue;

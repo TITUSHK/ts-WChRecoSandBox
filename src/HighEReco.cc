@@ -4,9 +4,7 @@
 #include <Math/Functor.h>
 #include <TH3.h>
 #include "HighEReco.hh"
-#include <iostream>
-#include <TObject.h>
-#include <algorithm>
+
 using namespace std;
 
 ClassImp(HighEReco)
@@ -281,19 +279,23 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
         //Scale number of points since circle with large pmtTrackAngle will cover more bins
         //Radius of circle on sphere is proportional to sin of half opening angle
         int circlePoints = (int) (1000* TMath::Sin(pmtTrackAngle));
+
+        //Pre-calculate useful quantities
+        double cosAlpha = TMath::Cos(pmtTrackAngle);
+        double sinAlpha = TMath::Sin(pmtTrackAngle);
+        //phi0 and theta0 are for vector pointing from vertex to PMT
+        double phi0 = TMath::ATan2(vtxToPMTy,vtxToPMTx);
+        double theta0 = TMath::ACos(vtxToPMTz/pmtDist);
+        double cosphi0 = TMath::Cos(phi0);
+        double sinphi0 = TMath::Sin(phi0);
+        double costheta0 = TMath::Cos(theta0);
+        double sintheta0 = TMath::Sin(theta0);
+        //int prevBin = -1;
         for(int iPhi=0; iPhi<circlePoints; iPhi++){
-            //Calculate point on circle pmtTrackAngle away from vertex-PMT direction
+            //Calculate point on circle pmtTrackAngle away from vertex-PMT direction (theat0,phi0)
             double Phi = iPhi*2.* TMath::Pi()/circlePoints;
             double cosPhi = TMath::Cos(Phi);
             double sinPhi = TMath::Sin(Phi);
-            double cosAlpha = TMath::Cos(pmtTrackAngle);
-            double sinAlpha = TMath::Sin(pmtTrackAngle);
-            double phi0 = TMath::ATan2(vtxToPMTy,vtxToPMTx);
-            double theta0 = TMath::ACos(vtxToPMTz/pmtDist);
-            double cosphi0 = TMath::Cos(phi0);
-            double sinphi0 = TMath::Sin(phi0);
-            double costheta0 = TMath::Cos(theta0);
-            double sintheta0 = TMath::Sin(theta0);
             double x = costheta0*cosphi0*sinAlpha*cosPhi - sinphi0*sinAlpha*sinPhi + sintheta0*cosphi0*cosAlpha;
             double y = sinphi0*costheta0*sinAlpha*cosPhi + cosphi0*sinAlpha*sinPhi + sintheta0*sinphi0*cosAlpha;
             double z = costheta0*cosAlpha-sintheta0*sinAlpha*cosPhi;
@@ -303,8 +305,10 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
             int m = (int) ((newTheta*sOverdz-newPhi)/ TMath::TwoPi()+0.5);
             double binTheta = (m* TMath::TwoPi()+newPhi)/sOverdz;
             int bin = (int) ((1.0- TMath::Cos(binTheta))/dz+0.5*shift);
+            //if(bin==prevBin) continue;
             // Add to bin
             count[bin]++;
+            //prevBin=bin;
         }
     }
     //Find peak (just use bin with highest value)
@@ -328,12 +332,12 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
         if(hitRing[iPE]<ringNumber) continue;
         //calculate expected time of flight
         double expectedTime = FullTimeOfFlight(vtxX, vtxY, vtxZ, dirX, dirY, dirZ, pmt, cherenkovAngle);
-        if(TMath::Abs(hitT[iPE]-vtxT-expectedTime)<2.0* hitPMTTimeRes[pmt]){
+        if(TMath::Abs(hitT[iPE]-vtxT-expectedTime)<2.0*hitPMTTimeRes[pmt]){
             hitRing[iPE]=ringNumber;
             nRingPEs++;
         }
     }
-    cout << "Ring " << ringNumber << " found with direction: (" << dirX << ", " << dirY << ", " << dirZ << ") PEs: " << nRingPEs << endl;
+    cout << "Ring " << ringNumber << " found with direction: (" << dirX << ", " << dirY << ", " << dirZ << ") (" << thetaPeak << ", " << phiPeak << ") PEs: " << nRingPEs << endl;
 
 //  TGraph2D *gr = new TGraph2D();
 //  for(int iBin=0; iBin<nBins; iBin++)
@@ -343,17 +347,82 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
     return nRingPEs;
 }
 
-int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double* &thetaPeaks, double* &phiPeaks, int* &ringPEs, int maxRings, bool useTrack) {
-    thetaPeaks = new double[maxRings];
-    phiPeaks = new double[maxRings];
-    ringPEs = new int[maxRings];
-    int nrings=0;
-    ringPEs[0] = FindRing(vtxX,vtxY,vtxZ,vtxT,thetaPeaks[0],phiPeaks[0],1,useTrack);
+int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double* thetaPeaks, double* phiPeaks, int* ringPEs, int maxRings, bool useTrack) {
+    double * tmpThetaPeaks = new double[maxRings];
+    double * tmpPhiPeaks = new double[maxRings];
+    int * tmpRingPEs = new int[maxRings];
     //Keep looking for rings until few enough PEs in next ring
-    while(nrings<maxRings && ringPEs[nrings]>ringPEs[0]*multiRingFactor){
-        nrings++;
-        ringPEs[nrings]=FindRing(vtxX,vtxY,vtxZ,vtxT,thetaPeaks[nrings],phiPeaks[nrings],nrings+1);
+    int nrings;
+    for(nrings=0; nrings<maxRings; nrings++){
+        tmpRingPEs[nrings]=FindRing(vtxX,vtxY,vtxZ,vtxT,tmpThetaPeaks[nrings],tmpPhiPeaks[nrings],nrings+1,useTrack);
+        if(tmpRingPEs[nrings]<0.09*tmpRingPEs[0]) break;
     }
+/*
+    if(nrings <2){
+        ringPEs[0] = tmpRingPEs[0];
+        thetaPeaks[0] = tmpThetaPeaks[0];
+        phiPeaks[0] = tmpPhiPeaks[0];
+    }
+    else {
+        //Redistribute hits to rings
+
+        double cherenkovAngle = TMath::ACos(1.0 / N_REF);
+        double *dirX = new double[nrings];
+        double *dirY = new double[nrings];
+        double *dirZ = new double[nrings];
+        for (int iRing = 0; iRing < nrings; iRing++) {
+            dirX[iRing] = TMath::Sin(tmpThetaPeaks[iRing]) * TMath::Cos(tmpPhiPeaks[iRing]);
+            dirY[iRing] = TMath::Sin(tmpThetaPeaks[iRing]) * TMath::Sin(tmpPhiPeaks[iRing]);
+            dirZ[iRing] = TMath::Cos(tmpThetaPeaks[iRing]);
+        }
+        for (int iPE = 0; iPE < nPEs; iPE++) {
+            int pmt = hitPMT[iPE];
+            int ring = hitRing[iPE]-1;
+            double expectedTime = FullTimeOfFlight(vtxX, vtxY, vtxZ, dirX[ring], dirY[ring], dirZ[ring], pmt,
+                                                   cherenkovAngle);
+            for (int newRing = ring+1; newRing < nrings; newRing++) {
+                double newExpectedTime = FullTimeOfFlight(vtxX, vtxY, vtxZ, dirX[newRing], dirY[newRing], dirZ[newRing],
+                                                          pmt, cherenkovAngle);
+                if (TMath::Abs(newExpectedTime - hitT[iPE] - vtxT) < TMath::Abs(expectedTime - hitT[iPE] - vtxT)) {
+                    tmpRingPEs[hitRing[iPE]-1]--;
+                    tmpRingPEs[newRing]++;
+                    hitRing[iPE] = newRing + 1;
+                    expectedTime = newExpectedTime;
+                }
+            }
+        }
+        delete[] dirX;
+        delete[] dirY;
+        delete[] dirZ;
+
+        //Reorder rings to be in order of number of hits
+        for (int iRing = 0; iRing < nrings; iRing++) ringPEs[iRing] = tmpRingPEs[iRing];
+        std::sort(ringPEs, ringPEs + nrings, std::greater<int>());
+        int *newOrder = new int[nrings];
+        for (int newRingIndex = 0; newRingIndex < nrings; newRingIndex++) {
+            int oldRingIndex = 0;
+            while (tmpRingPEs[oldRingIndex] != ringPEs[newRingIndex]) oldRingIndex++;
+            thetaPeaks[newRingIndex] = tmpThetaPeaks[oldRingIndex];
+            phiPeaks[newRingIndex] = tmpPhiPeaks[oldRingIndex];
+            tmpRingPEs[oldRingIndex] = -1;
+            newOrder[oldRingIndex] = newRingIndex;
+//            cout << oldRingIndex+1 << " " << newRingIndex+1 << endl;
+        }
+        for (int iPE = 0; iPE < nPEs; iPE++) {
+            if(hitRing[iPE]<=nrings)
+            hitRing[iPE] = newOrder[hitRing[iPE]-1] + 1;
+        }
+        delete[] newOrder;
+    }
+*/
+    for (int iRing = 0; iRing < nrings; iRing++){
+        ringPEs[iRing] = tmpRingPEs[iRing];
+        thetaPeaks[iRing] = tmpThetaPeaks[iRing];
+        phiPeaks[iRing] = tmpPhiPeaks[iRing];
+    }
+    delete[] tmpThetaPeaks;
+    delete[] tmpPhiPeaks;
+    delete[] tmpRingPEs;
     return nrings;
 }
 
@@ -416,7 +485,7 @@ double HighEReco::PMTlnLikelihood(double vtxX, double vtxY, double vtxZ, double 
 }
 
 // Calculate total likelihood for all PMTs
-double HighEReco::LnLikelihood(const double *par, int ipnu, bool total, bool print){
+double HighEReco::LnLikelihood(const double *par, int ipnu, bool total) {
     double vtxZ = par[1];
     double vtxY = par[2];
     double vtxX = par[3];
@@ -494,30 +563,30 @@ double HighEReco::LnLikelihood(const double *par, int ipnu, bool total, bool pri
 }
 
 double HighEReco::ElectronLnLikelihood(const double *par){
-    return -LnLikelihood(par, 11, false, false);
+    return -LnLikelihood(par, 11, false);
 }
 
 double HighEReco::MuonLnLikelihood(const double *par){
 //    for(int i =0; i<8; i++) cout << par[i] << " ";
-    double result = -LnLikelihood(par, 13, false, false);
+    double result = -LnLikelihood(par, 13, false);
 //    cout << result << endl;
     return result;
 }
 
 double HighEReco::ElectronLnLikelihoodTotal(const double *par){
-    return -LnLikelihood(par, 11, true, false);
+    return -LnLikelihood(par, 11, true);
 }
 
 double HighEReco::MuonLnLikelihoodTotal(const double *par){
-    return -LnLikelihood(par, 13, true, false);
+    return -LnLikelihood(par, 13, true);
 }
 
-double HighEReco::ElectronLnLikelihood2(const double *par, bool print){
-    return -LnLikelihood(par, 11, false, print);
+double HighEReco::ElectronLnLikelihood2(const double *par) {
+    return -LnLikelihood(par, 11, false);
 }
 
-double HighEReco::MuonLnLikelihood2(const double *par, bool print){
-    return -LnLikelihood(par, 13, false, print);
+double HighEReco::MuonLnLikelihood2(const double *par) {
+    return -LnLikelihood(par, 13, false);
 }
 
 void HighEReco::PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &cherenkovAngle) {
@@ -568,12 +637,13 @@ void HighEReco::PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, d
 
 void HighEReco::TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &recoDirPhi,
               double &recoDirTheta, double &recoDirCosTheta, double &cherenkovAngle) {
-    double recoPar2[7]={recoT,cherenkovAngle,recoDirCosTheta,recoDirPhi,recoVtxZ,recoVtxY,recoVtxX};
-    TrackGoodness(recoPar2);
+    //double recoPar2[7]={recoT,cherenkovAngle,recoDirCosTheta,recoDirPhi,recoVtxZ,recoVtxY,recoVtxX};
+//    TrackGoodness(recoPar2);
 //  trueG = -TrackGoodness(truePar);
 //  cout<<"   Goodness True: "<<trueG<<"  Reco: "<<recoG<<endl;
     cout << "Fit vertex including track" << endl;
     //Set up minimizer:
+    //ROOT::Math::Minimizer*minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     ROOT::Math::Minimizer*minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(1000000);
     minimizer->SetTolerance(0.0001);
@@ -633,9 +703,10 @@ void HighEReco::TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, d
     TMath::Cos(recoDirTheta)<<")"
     <<" thetaC: " << cherenkovAngle*180.0/ TMath::Pi() << endl;
     //cout<<"rErr vtx: ("<<recoErrVtxX<<" "<<recoErrVtxY<<" "<<recoErrVtxZ<<")"<<" dir: (c"<<recoErrDirCosTheta<<" "<<recoErrDirPhi<<")"<<endl;
-    double recoPar4[7]={recoT,cherenkovAngle,recoDirCosTheta,recoDirPhi,recoVtxZ,recoVtxY,recoVtxX};
-    TrackGoodness(recoPar4);
+    //double recoPar4[7]={recoT,cherenkovAngle,recoDirCosTheta,recoDirPhi,recoVtxZ,recoVtxY,recoVtxX};
+//    TrackGoodness(recoPar4);
 //  cout<<"Goodness True: "<<trueG<<"  Reco: "<<recoG<<endl<<endl;
+
 }
 
 void HighEReco::LikelihoodFit(double &trackCorrection, double &recoVtxX, double &recoVtxY,
@@ -726,7 +797,7 @@ void HighEReco::LikelihoodFit(double &trackCorrection, double &recoVtxX, double 
     TMath::Sin(recoDirTheta)* TMath::Sin(recoDirPhi)<<" "<< recoDirCosTheta <<")"
     <<" KE: " << recoKE << endl;
     double recoPar[8]={0,recoVtxZ,recoVtxY,recoVtxX,recoT,recoDirCosTheta,recoDirPhi, recoKE};
-    recoLnL = LnLikelihood(recoPar, ipnu,false,true);
+    recoLnL = LnLikelihood(recoPar, ipnu, false);
 //  trueElectronLnL = -func(trueParL, true);
 //  cout << "Log Likelihood (electron) True: "<< trueElectronLnL <<"  Reco: " << recoElectronLnL << endl <<endl;
 }

@@ -56,7 +56,7 @@ class WChRecoLite : public TObject {
 
   void FitPointTimePropertiesLnL(Double_t& fit_time, Double_t& fom);
 
-  Int_t SelectBestSeed(int evt_num);
+  Int_t SelectBestSeed();
 
   double WeightedSumSeed(int xyz);
 
@@ -114,7 +114,7 @@ class WChRecoLite : public TObject {
   std::vector<double> vSeedVtxZ;
   std::vector<double> vSeedVtxTime;
   std::vector<int> vSeedDigitList;
-  
+  /*
   TFile* fFOM;
   TH1F* hT;
   TH1F* hDT0;
@@ -122,7 +122,7 @@ class WChRecoLite : public TObject {
 
   TH1F *hX, *hY, *hZ;
   TH1F* hFOM;
-  
+  */
   ClassDef(WChRecoLite,0)
 
 };

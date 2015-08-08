@@ -125,7 +125,18 @@ void SandFit(TString filename = "out.root",
         else
             mTR->LoadData(filename, genfilename);
     }
+
     TFile *likelihoodTables = new TFile(lnLfilename, "READ");
+    TH3D *electronPhotons = (TH3D *) likelihoodTables->Get("photons_e");
+    TH3D *muonPhotons = (TH3D *) likelihoodTables->Get("photons_mu");
+    TH3D *electronTimes = (TH3D *) likelihoodTables->Get("times_e");
+    TH3D *muonTimes = (TH3D *) likelihoodTables->Get("times_mu");
+
+    TFile *energyTables = new TFile(lookupfilename, "READ");
+    TH2D *electronEnergyLookup = (TH2D *) energyTables->Get("nHitDWallKELookup_e");
+    TH2D *muonEnergyLookup = (TH2D *) energyTables->Get("nHitDWallKELookup_mu");
+    TH2D *electronVtxBiasLookup = (TH2D *) energyTables->Get("nHitDWallVtxTrackBias_e");
+    TH2D *muonVtxBiasLookup = (TH2D *) energyTables->Get("nHitDWallVtxTrackBias_mu");
 
     // Get positions, timing res of all PMTs
     cout << "getting PMT info" << endl;
@@ -470,10 +481,6 @@ void SandFit(TString filename = "out.root",
             neutronCount = mTR->get_neutroncount();
             nCaptures = mTR->get_ncapturecount();
         }
-/*    else{ //Ignore non-CCQE for now
-      cout << "----- Skipping non-CCQE event mode:" << mTR->get_genmode()<< "-----" << endl << endl;
-      continue;
-    }*/
         double trueVtxR2 = trueVtxX*trueVtxX+trueVtxY*trueVtxY;
         double trueDWallR = 550-TMath::Sqrt(trueVtxR2);
         double trueDWallZ = 1100-TMath::Abs(trueVtxZ);
@@ -492,7 +499,7 @@ void SandFit(TString filename = "out.root",
 
         int totalPEs = mTR->get_nhits();
         if(totalPEs<10
-            || trueDWall < 100 || abs(mode) != 1 || trueKE < 400 || trueKE > 1000
+       //     || trueDWall < 100 || abs(mode) != 1 || trueKE < 400 || trueKE > 1000
                 ) { //ignore events with too few PEs
             cout << "----- Skipping event! -----" << endl << endl;
             nSubevents =0;
@@ -574,6 +581,9 @@ void SandFit(TString filename = "out.root",
                 if(hitt[iClusterHit]<clusterStartTime) clusterStartTime=hitt[iClusterHit];
                 iClusterHit++;
             }
+//            for(int iHit=0; iHit<iClusterHit; iHit++){
+//                hitt[iHit] -= clusterStartTime;
+//            }
             // nHits energy estimate.
             LowEReco lowEReco;
             recoEnergyLowE[iCluster] = lowEReco.ReconstructEnergy(nHits, hitx, hity, hitz);
@@ -601,7 +611,7 @@ void SandFit(TString filename = "out.root",
 
             // If < threshold, don't do high E reco
             const int highEThreshold = 60;
-            if (recoEnergyLowE[subevent] < highEThreshold){
+            if (recoEnergyLowE[iCluster] < highEThreshold){
                 //Check for neutron capture
                 if(recoEnergy[subevent] > 2 && recoEnergy[subevent] < 10 && recoTime[subevent] > 2000 && recoTime[subevent] < 100000)
                     recoCaptures++;
@@ -633,10 +643,10 @@ void SandFit(TString filename = "out.root",
 
             //High-E reco
             HighEReco highEReco;
-            highEReco.electronPhotons = (TH3D *) likelihoodTables->Get("photons_e");
-            highEReco.muonPhotons = (TH3D *) likelihoodTables->Get("photons_mu");
-            highEReco.electronTimes = (TH3D *) likelihoodTables->Get("times_e");
-            highEReco.muonTimes = (TH3D *) likelihoodTables->Get("times_mu");
+            highEReco.electronPhotons = electronPhotons;
+            highEReco.muonPhotons = muonPhotons;
+            highEReco.electronTimes = electronTimes;
+            highEReco.muonTimes = muonTimes;
 
             int *hitPMTids = mTR->get_hitPMTid();
 
@@ -682,7 +692,7 @@ void SandFit(TString filename = "out.root",
 
             highEReco.hitPMT = new int[highEReco.nPEs];
             highEReco.hitT = new double[highEReco.nPEs];
-            highEReco.hitRing = new double[highEReco.nPEs];
+            highEReco.hitRing = new int[highEReco.nPEs];
             // Loop over PEs create arrays of hit PMT, hit time, etc, for use later
             for (int iPE = 0, iPE2 = 0; iPE < totalPEs; iPE++) {
                 if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster +1) continue;
@@ -702,18 +712,19 @@ void SandFit(TString filename = "out.root",
             pointVtxZ[iCluster] = recoVtxZ[subevent];
             pointTime[iCluster] = recoTime[subevent];
 
-            double *peakTheta, *peakPhi;
-            int * ringPE;
+            int maxRings = maxSubEvts-subevent;
+            double *peakTheta = new double[maxRings];
+            double *peakPhi = new double[maxRings];
+            int * ringPE = new int[maxRings];
             recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent],recoVtxY[subevent],recoVtxZ[subevent],recoTime[subevent],
-                                                       peakTheta,peakPhi,ringPE,maxSubEvts-nSubevents +1);
+                                                       peakTheta,peakPhi,ringPE,maxRings);
+
             nSubevents += recoNRings[iCluster]-1;
+            if(nSubevents > maxSubEvts) nSubevents=maxSubEvts;
 
             cout << "Found " << recoNRings[iCluster] << " rings." << endl;
-
-//            for (int iPE = 0; iPE < highEReco.nPEs; iPE++) {
-//                if (highEReco.hitRing[iPE] == 1) ring1PE[subevent][pmtID[highEReco.hitPMT[iPE]]]++;
-//                else if (highEReco.hitRing[iPE] == 2) ring2PE[subevent][pmtID[highEReco.hitPMT[iPE]]]++;
-//            }
+            for(int iRing = 0; iRing < recoNRings[iCluster]; iRing++)
+                cout << "Ring " << iRing+1 << ": " << ringPE[iRing] << " PEs    theta=" << peakTheta[iRing] << " phi=" << peakPhi[iRing] << endl;
 
             //Save all cluster hit info
             int * clusterHitPMTPEs = highEReco.hitPMTPEs;
@@ -752,10 +763,12 @@ void SandFit(TString filename = "out.root",
                 ring[subevent] = iRing+1;
                 double *newHitT = new double[ringPEs[subevent]];
                 int *newHitPMT = new int[ringPEs[subevent]];
-                int nPEnew = 0;
                 highEReco.hitPMTPEs = new int[clusterHitPMTs](); for(int iPMT =0; iPMT < clusterHitPMTs; iPMT++) highEReco.hitPMTPEs[iPMT]=0;
+//                cout << iRing << " " << ringPEs[subevent] << ":" << endl;
+                int nPEnew = 0;
                 for (int iPE = 0; iPE < clusterPEs; iPE++) {
                     if (highEReco.hitRing[iPE] != iRing+1) continue;
+//                    cout << iPE << " " << nPEnew << endl;
                     newHitT[nPEnew] = clusterHitT[iPE];
                     newHitPMT[nPEnew] = clusterHitPMT[iPE];
                     highEReco.hitPMTPEs[clusterHitPMT[iPE]]++;
@@ -798,7 +811,7 @@ void SandFit(TString filename = "out.root",
                 delete[] highEReco.hitPMTPEs;
                 highEReco.hitPMTPEs = pmtPEsNew;
                 highEReco.nHitPMT = nPMTnew;
-                for (int iPE = 0; iPE < highEReco.nPEs; iPE++) {
+                for (int iPE = 0; iPE < highEReco.nPEs; iPE++){
                     highEReco.hitPMT[iPE] = newPMTids[highEReco.hitPMT[iPE]];
                 }
                 delete[] newPMTids;
@@ -830,16 +843,12 @@ void SandFit(TString filename = "out.root",
                 trackDirZ[subevent] = recoDirZ[subevent];
 
                 //Energy reconstruction and correction to vertex in track direction
-                TFile energyTables(lookupfilename);
-                TH2D *electronEnergyLookup = (TH2D *) energyTables.Get("nHitDWallKELookup_e");
-                TH2D *muonEnergyLookup = (TH2D *) energyTables.Get("nHitDWallKELookup_mu");
-                TH2D *electronVtxBiasLookup = (TH2D *) energyTables.Get("nHitDWallVtxTrackBias_e");
-                TH2D *muonVtxBiasLookup = (TH2D *) energyTables.Get("nHitDWallVtxTrackBias_mu");
+
                 double dWallZ = 1100 - TMath::Abs(recoVtxZ[subevent]);
                 double dWallR = 550 - TMath::Sqrt(
                         recoVtxX[subevent] * recoVtxX[subevent] + recoVtxY[subevent] * recoVtxY[subevent]);
                 double dWall = dWallR < dWallZ ? dWallR : dWallZ;
-                            double lookupPEs = ringPEs[subevent];
+                double lookupPEs = ringPEs[subevent];
                 double dWallMin = muonEnergyLookup->GetYaxis()->GetBinCenter(muonEnergyLookup->GetYaxis()->GetFirst());
                 double dWallMax = muonEnergyLookup->GetYaxis()->GetBinCenter(muonEnergyLookup->GetYaxis()->GetLast());
                 double PEmin = muonEnergyLookup->GetXaxis()->GetBinCenter(muonEnergyLookup->GetXaxis()->GetFirst());
@@ -856,14 +865,13 @@ void SandFit(TString filename = "out.root",
                     lookupPEs = PEmax - 1;
                 }
                 recoEnergyHighEMuon[subevent] = muonEnergyLookup->Interpolate(lookupPEs, dWall)*correctionFactor;
-                recoEnergyHighEElectron[subevent] =
-                        electronEnergyLookup->Interpolate(lookupPEs, dWall)*correctionFactor;
+                recoEnergyHighEElectron[subevent] = electronEnergyLookup->Interpolate(lookupPEs, dWall)*correctionFactor;
                 muonTrackCorrection[subevent] = muonVtxBiasLookup->Interpolate(lookupPEs, dWall);
                 electronTrackCorrection[subevent] = electronVtxBiasLookup->Interpolate(lookupPEs, dWall);
 
                 cout << "Energy lookup:    Muon: " << recoEnergyHighEMuon[subevent] << "    Electron: " <<
                 recoEnergyHighEElectron[subevent] << endl;
-
+/*
                 if (recoEnergyHighEElectron[subevent] < highEThreshold ||
                     recoEnergyHighEMuon[subevent] < highEThreshold) {
                     recoPID[subevent] = 0;
@@ -888,7 +896,7 @@ void SandFit(TString filename = "out.root",
                     isHighE[subevent] = false;
                     continue;
                 }
-
+*/
                 //Need to use unhit PMTs in likelihood
                 for (int iPMT = 0; iPMT < highEReco.nHitPMT; iPMT++) {
                     observedPE[subevent][pmtID[iPMT]] = highEReco.hitPMTPEs[iPMT];
@@ -1063,6 +1071,9 @@ void SandFit(TString filename = "out.root",
             delete[] clusterHitPMTDirZ;
             delete[] clusterHitPMTTimeRes;
             delete[] clusterPMTid;
+            delete[] peakTheta;
+            delete[] peakPhi;
+            delete[] ringPE;
 //    break;
         }
         trueDirX = TMath::Sin(trueDirTheta) * TMath::Cos(trueDirPhi);
@@ -1126,4 +1137,5 @@ void SandFit(TString filename = "out.root",
     delete[] pmtTimeResAll;
     delete[] pmtIDall;
     likelihoodTables->Close();
+    energyTables->Close();
 }
