@@ -55,7 +55,7 @@ int* FindClusters(int nHits, double * hitTimes, int * hitCluster, int & nCluster
         //Found a cluster
         nClusters++;
         cout << "Cluster " << nClusters << " found with " << clusterEnd-clusterStart+1 << "hits: "
-        << clusterStartTime << "ns to " << clusterEndTime << "ns" << endl;
+             << clusterStartTime << "ns to " << clusterEndTime << "ns" << endl;
         //Set cluster number for hits in cluster
         for(int iHit = clusterStart; iHit<=clusterEnd; iHit++){
             hitCluster[hitOrder[iHit]] = nClusters;
@@ -172,8 +172,6 @@ void RecoForLookup(TString filename = "out.root",
 
     TTree* DebugTree = new TTree("Debug","Debug");
     TTree* LowETree = new TTree("Low_E","Low_E");
-    TTree* HighEElectronTree = new TTree("High_E_Electron","High_E_Electron");
-    TTree* HighEMuonTree = new TTree("High_E_Muon","High_E_Muon");
     TTree* FinalTree = new TTree("Final_Reconstruction","Final_Reconstruction");
 
     const int maxSubEvts = 20;
@@ -336,7 +334,7 @@ void RecoForLookup(TString filename = "out.root",
     DebugTree->Branch("nCaptures",&nCaptures,"nCaptures/I");
     DebugTree->Branch("nPMTs",&totalPMTs,"nPMTs/I");
     DebugTree->Branch("pmtID",pmtIDall,Form("pmtID[%i]/I",totalPMTs));
-    DebugTree->Branch("pmtXtt",pmtXall,Form("pmtX[%i]/D",totalPMTs));
+    DebugTree->Branch("pmtX",pmtXall,Form("pmtX[%i]/D",totalPMTs));
     DebugTree->Branch("pmtY",pmtYall,Form("pmtY[%i]/D",totalPMTs));
     DebugTree->Branch("pmtZ",pmtZall,Form("pmtZ[%i]/D",totalPMTs));
     DebugTree->Branch("pmtDirX",pmtDirXall,Form("pmtDirX[%i]/D",totalPMTs));
@@ -415,10 +413,6 @@ void RecoForLookup(TString filename = "out.root",
             neutronCount = mTR->get_neutroncount();
             nCaptures = mTR->get_ncapturecount();
         }
-/*    else{ //Ignore non-CCQE for now
-      cout << "----- Skipping non-CCQE event mode:" << mTR->get_genmode()<< "-----" << endl << endl;
-      continue;
-    }*/
         double trueVtxR2 = trueVtxX*trueVtxX+trueVtxY*trueVtxY;
         double trueDWallR = 550-TMath::Sqrt(trueVtxR2);
         double trueDWallZ = 1100-TMath::Abs(trueVtxZ);
@@ -437,7 +431,7 @@ void RecoForLookup(TString filename = "out.root",
 
         int totalPEs = mTR->get_nhits();
         if(totalPEs<10
-           || trueDWall < 100 || abs(mode) != 1 || trueKE < 400 || trueKE > 1000
+            || abs(mode) != 1
                 ) { //ignore events with too few PEs
             cout << "----- Skipping event! -----" << endl << endl;
             nSubevents =0;
@@ -453,8 +447,6 @@ void RecoForLookup(TString filename = "out.root",
             diffDirAbs=-9999;
             diffKE=-9999;
             LowETree->Fill();
-            HighEElectronTree->Fill();
-            HighEMuonTree->Fill();
             FinalTree->Fill();
             DebugTree->Fill();
             continue;
@@ -480,8 +472,6 @@ void RecoForLookup(TString filename = "out.root",
             diffDirAbs=-9999;
             diffKE=-9999;
             LowETree->Fill();
-            HighEElectronTree->Fill();
-            HighEMuonTree->Fill();
             FinalTree->Fill();
             DebugTree->Fill();
             continue;
@@ -519,6 +509,9 @@ void RecoForLookup(TString filename = "out.root",
                 if(hitt[iClusterHit]<clusterStartTime) clusterStartTime=hitt[iClusterHit];
                 iClusterHit++;
             }
+//            for(int iHit=0; iHit<iClusterHit; iHit++){
+//                hitt[iHit] -= clusterStartTime;
+//            }
             // nHits energy estimate.
             LowEReco lowEReco;
             recoEnergyLowE[iCluster] = lowEReco.ReconstructEnergy(nHits, hitx, hity, hitz);
@@ -546,127 +539,132 @@ void RecoForLookup(TString filename = "out.root",
 
             // If < threshold, don't do high E reco
             const int highEThreshold = 60;
-            if (recoEnergyLowE[subevent] < highEThreshold){
+            if (recoEnergyLowE[iCluster] < highEThreshold){
                 //Check for neutron capture
                 if(recoEnergy[subevent] > 2 && recoEnergy[subevent] < 10 && recoTime[subevent] > 2000 && recoTime[subevent] < 100000)
                     recoCaptures++;
                 recoPID[subevent] = 0;
                 recoNRings[iCluster] = 0;
                 isHighE[subevent] = false;
-                continue;
+                //continue;
             }
+            else {
 
-            //High-E reco
-            HighEReco highEReco;
+                //High-E reco
+                HighEReco highEReco;
 
-            int *hitPMTids = mTR->get_hitPMTid();
+                int *hitPMTids = mTR->get_hitPMTid();
 
-            //Find number of PEs from current subevent on each PMT
-            double maxTime = clusterStartTime+90; //ignore all PEs after 90ns (~22m for photon in water)
-            cout << "Cluster start time: " << clusterStartTime << endl;
-            highEReco.nPEs = 0;
-            for (int iPE = 0; iPE < totalPEs; iPE++) {
-                if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster +1) continue;
-                highEReco.nPEs++;
-                allPE[iCluster][hitPMTids[iPE]]++;
-            }
-            //Now create new arrays for PMTs that were actually hit
-            highEReco.nHitPMT = 0;
-            for (int iPMT = 0; iPMT < totalPMTs; iPMT++) {
-                highEReco.nHitPMT += (allPE[iCluster][iPMT] > 0);
-            }
-            cout << highEReco.nHitPMT << " PMTs with" << highEReco.nPEs << " hits" << endl;
-            highEReco.hitPMTx = new double[highEReco.nHitPMT];
-            highEReco.hitPMTy = new double[highEReco.nHitPMT];
-            highEReco.hitPMTz = new double[highEReco.nHitPMT];
-            highEReco.hitPMTDirX = new double[highEReco.nHitPMT];
-            highEReco.hitPMTDirY = new double[highEReco.nHitPMT];
-            highEReco.hitPMTDirZ = new double[highEReco.nHitPMT];
-            highEReco.hitPMTTimeRes = new double[highEReco.nHitPMT];
-            int *pmtID = new int[highEReco.nHitPMT];
-            highEReco.hitPMTPEs = new int[highEReco.nHitPMT](); for(int iPMT =0; iPMT <highEReco.nHitPMT; iPMT++) highEReco.hitPMTPEs[iPMT]=0;
-            int *newPMTids = new int[totalPMTs];
-            for (int iPMT = 0, iPMT2 = 0; iPMT < totalPMTs; iPMT++) {
-                if (allPE[iCluster][iPMT] == 0) continue;
-                highEReco.hitPMTPEs[iPMT2] = allPE[iCluster][iPMT];
-                highEReco.hitPMTx[iPMT2] = pmtXall[iPMT];
-                highEReco.hitPMTy[iPMT2] = pmtYall[iPMT];
-                highEReco.hitPMTz[iPMT2] = pmtZall[iPMT];
-                highEReco.hitPMTDirX[iPMT2] = pmtDirXall[iPMT];
-                highEReco.hitPMTDirY[iPMT2] = pmtDirYall[iPMT];
-                highEReco.hitPMTDirZ[iPMT2] = pmtDirZall[iPMT];
-                highEReco.hitPMTTimeRes[iPMT2] = pmtTimeResAll[iPMT];
-                pmtID[iPMT2] = pmtIDall[iPMT];
-                newPMTids[iPMT] = iPMT2;
-                iPMT2++;
-            }
+                //Find number of PEs from current subevent on each PMT
+                double maxTime = clusterStartTime + 90; //ignore all PEs after 90ns (~22m for photon in water)
+                cout << "Cluster start time: " << clusterStartTime << endl;
+                highEReco.nPEs = 0;
+                for (int iPE = 0; iPE < totalPEs; iPE++) {
+                    if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster + 1) continue;
+                    highEReco.nPEs++;
+                    allPE[iCluster][hitPMTids[iPE]]++;
+                }
+                //Now create new arrays for PMTs that were actually hit
+                highEReco.nHitPMT = 0;
+                for (int iPMT = 0; iPMT < totalPMTs; iPMT++) {
+                    highEReco.nHitPMT += (allPE[iCluster][iPMT] > 0);
+                }
+                cout << highEReco.nHitPMT << " PMTs with" << highEReco.nPEs << " hits" << endl;
+                highEReco.hitPMTx = new double[highEReco.nHitPMT];
+                highEReco.hitPMTy = new double[highEReco.nHitPMT];
+                highEReco.hitPMTz = new double[highEReco.nHitPMT];
+                highEReco.hitPMTDirX = new double[highEReco.nHitPMT];
+                highEReco.hitPMTDirY = new double[highEReco.nHitPMT];
+                highEReco.hitPMTDirZ = new double[highEReco.nHitPMT];
+                highEReco.hitPMTTimeRes = new double[highEReco.nHitPMT];
+                int *pmtID = new int[highEReco.nHitPMT];
+                highEReco.hitPMTPEs = new int[highEReco.nHitPMT]();
+                for (int iPMT = 0; iPMT < highEReco.nHitPMT; iPMT++) highEReco.hitPMTPEs[iPMT] = 0;
+                int *newPMTids = new int[totalPMTs];
+                for (int iPMT = 0, iPMT2 = 0; iPMT < totalPMTs; iPMT++) {
+                    if (allPE[iCluster][iPMT] == 0) continue;
+                    highEReco.hitPMTPEs[iPMT2] = allPE[iCluster][iPMT];
+                    highEReco.hitPMTx[iPMT2] = pmtXall[iPMT];
+                    highEReco.hitPMTy[iPMT2] = pmtYall[iPMT];
+                    highEReco.hitPMTz[iPMT2] = pmtZall[iPMT];
+                    highEReco.hitPMTDirX[iPMT2] = pmtDirXall[iPMT];
+                    highEReco.hitPMTDirY[iPMT2] = pmtDirYall[iPMT];
+                    highEReco.hitPMTDirZ[iPMT2] = pmtDirZall[iPMT];
+                    highEReco.hitPMTTimeRes[iPMT2] = pmtTimeResAll[iPMT];
+                    pmtID[iPMT2] = pmtIDall[iPMT];
+                    newPMTids[iPMT] = iPMT2;
+                    iPMT2++;
+                }
 
-            highEReco.hitPMT = new int[highEReco.nPEs];
-            highEReco.hitT = new double[highEReco.nPEs];
-            highEReco.hitRing = new int[highEReco.nPEs];
-            // Loop over PEs create arrays of hit PMT, hit time, etc, for use later
-            for (int iPE = 0, iPE2 = 0; iPE < totalPEs; iPE++) {
-                if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster +1) continue;
-                int iPMT = newPMTids[hitPMTids[iPE]];
-                highEReco.hitPMT[iPE2] = iPMT;
-                highEReco.hitT[iPE2] = PEhitTimes[iPE];
-                highEReco.hitRing[iPE2] = 999;
-                iPE2++;
-            }
-            delete[] newPMTids;
+                highEReco.hitPMT = new int[highEReco.nPEs];
+                highEReco.hitT = new double[highEReco.nPEs];
+                highEReco.hitRing = new int[highEReco.nPEs];
+                // Loop over PEs create arrays of hit PMT, hit time, etc, for use later
+                for (int iPE = 0, iPE2 = 0; iPE < totalPEs; iPE++) {
+                    if (PEhitTimes[iPE] > maxTime || hitCluster[iPE] != iCluster + 1) continue;
+                    int iPMT = newPMTids[hitPMTids[iPE]];
+                    highEReco.hitPMT[iPE2] = iPMT;
+                    highEReco.hitT[iPE2] = PEhitTimes[iPE];
+                    highEReco.hitRing[iPE2] = 999;
+                    iPE2++;
+                }
+                delete[] newPMTids;
 
-            //Initial point fit for starting vertex
-            double recoPar[7];
-            highEReco.PointFit(recoVtxX[subevent], recoVtxY[subevent], recoVtxZ[subevent], recoTime[subevent], recoChkvAngle[subevent]);
-            pointVtxX[iCluster] = recoVtxX[subevent];
-            pointVtxY[iCluster] = recoVtxY[subevent];
-            pointVtxZ[iCluster] = recoVtxZ[subevent];
-            pointTime[iCluster] = recoTime[subevent];
+                //Initial point fit for starting vertex
+                double recoPar[7];
+                highEReco.PointFit(recoVtxX[subevent], recoVtxY[subevent], recoVtxZ[subevent], recoTime[subevent], recoChkvAngle[subevent]);
+                pointVtxX[iCluster] = recoVtxX[subevent];
+                pointVtxY[iCluster] = recoVtxY[subevent];
+                pointVtxZ[iCluster] = recoVtxZ[subevent];
+                pointTime[iCluster] = recoTime[subevent];
 
-            double *peakTheta, *peakPhi;
-            int * ringPE;
-            recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent],recoVtxY[subevent],recoVtxZ[subevent],recoTime[subevent],
-                                                       peakTheta,peakPhi,ringPE,maxSubEvts-nSubevents +1);
-            nSubevents += recoNRings[iCluster]-1;
+                int maxRings = maxSubEvts - subevent;
+                double *peakTheta = new double[maxRings];
+                double *peakPhi = new double[maxRings];
+                int *ringPE = new int[maxRings];
+                recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent],recoVtxY[subevent],recoVtxZ[subevent],recoTime[subevent],
+                                                           peakTheta, peakPhi, ringPE, maxRings);
 
-            cout << "Found " << recoNRings[iCluster] << " rings." << endl;
+                nSubevents += recoNRings[iCluster] - 1;
+                if (nSubevents > maxSubEvts) nSubevents = maxSubEvts;
 
-//            for (int iPE = 0; iPE < highEReco.nPEs; iPE++) {
-//                if (highEReco.hitRing[iPE] == 1) ring1PE[subevent][pmtID[highEReco.hitPMT[iPE]]]++;
-//                else if (highEReco.hitRing[iPE] == 2) ring2PE[subevent][pmtID[highEReco.hitPMT[iPE]]]++;
-//            }
+                cout << "Found " << recoNRings[iCluster] << " rings." << endl;
+                for (int iRing = 0; iRing < recoNRings[iCluster]; iRing++)
+                cout << "Ring " << iRing+1 << ": " << ringPE[iRing] << " PEs    theta=" << peakTheta[iRing] << " phi=" << peakPhi[iRing] << endl;
 
-            //Save all cluster hit info
-            int * clusterHitPMTPEs = highEReco.hitPMTPEs;
-            int * clusterHitPMT = highEReco.hitPMT;
-            double * clusterHitT = highEReco.hitT;
-            int clusterPEs = highEReco.nPEs;
-            double * clusterHitPMTx = highEReco.hitPMTx;
-            double * clusterHitPMTy = highEReco.hitPMTy;
-            double * clusterHitPMTz = highEReco.hitPMTz;
-            double * clusterHitPMTDirX = highEReco.hitPMTDirX;
-            double * clusterHitPMTDirY = highEReco.hitPMTDirY;
-            double * clusterHitPMTDirZ = highEReco.hitPMTDirZ;
-            double * clusterHitPMTTimeRes = highEReco.hitPMTTimeRes;
-            int * clusterPMTid = pmtID;
-            int clusterHitPMTs = highEReco.nHitPMT;
+                //Save all cluster hit info
+                int *clusterHitPMTPEs = highEReco.hitPMTPEs;
+                int *clusterHitPMT = highEReco.hitPMT;
+                double *clusterHitT = highEReco.hitT;
+                int clusterPEs = highEReco.nPEs;
+                double *clusterHitPMTx = highEReco.hitPMTx;
+                double *clusterHitPMTy = highEReco.hitPMTy;
+                double *clusterHitPMTz = highEReco.hitPMTz;
+                double *clusterHitPMTDirX = highEReco.hitPMTDirX;
+                double *clusterHitPMTDirY = highEReco.hitPMTDirY;
+                double *clusterHitPMTDirZ = highEReco.hitPMTDirZ;
+                double *clusterHitPMTTimeRes = highEReco.hitPMTTimeRes;
+                int *clusterPMTid = pmtID;
+                int clusterHitPMTs = highEReco.nHitPMT;
 
-            int iRing = 0;
+                int iRing = 0;
                 ringPEs[subevent] = ringPE[iRing];
                 double recoDirTheta = peakTheta[iRing];
                 double recoDirCosTheta = TMath::Cos(recoDirTheta);
                 double recoDirPhi = peakPhi[iRing];
 
-                cout << "Ring " << iRing+1 << endl;
+                cout << "Ring " << iRing + 1 << endl;
 
                 //Only use PEs from this ring from now on
-                ring[subevent] = iRing+1;
+                ring[subevent] = iRing + 1;
                 double *newHitT = new double[ringPEs[subevent]];
                 int *newHitPMT = new int[ringPEs[subevent]];
-                int nPEnew = 0;
                 highEReco.hitPMTPEs = new int[clusterHitPMTs](); for(int iPMT =0; iPMT < clusterHitPMTs; iPMT++) highEReco.hitPMTPEs[iPMT]=0;
+//                cout << iRing << " " << ringPEs[subevent] << ":" << endl;
+                int nPEnew = 0;
                 for (int iPE = 0; iPE < clusterPEs; iPE++) {
-                    if (highEReco.hitRing[iPE] != iRing+1) continue;
+                    if (highEReco.hitRing[iPE] != iRing + 1) continue;
+//                    cout << iPE << " " << nPEnew << endl;
                     newHitT[nPEnew] = clusterHitT[iPE];
                     newHitPMT[nPEnew] = clusterHitPMT[iPE];
                     highEReco.hitPMTPEs[clusterHitPMT[iPE]]++;
@@ -753,26 +751,24 @@ void RecoForLookup(TString filename = "out.root",
                 delete[] highEReco.hitT;
                 delete[] highEReco.hitPMT;
                 delete[] highEReco.hitPMTPEs;
-                delete[] highEReco.unhitPMTx;
-                delete[] highEReco.unhitPMTy;
-                delete[] highEReco.unhitPMTz;
-                delete[] highEReco.unhitPMTDirX;
-                delete[] highEReco.unhitPMTDirY;
-                delete[] highEReco.unhitPMTDirZ;
-                delete[] highEReco.unhitPMTTimeRes;
 
-            delete[] highEReco.hitRing;
-            delete[] clusterHitPMTPEs;
-            delete[] clusterHitPMT;
-            delete[] clusterHitT;
-            delete[] clusterHitPMTx;
-            delete[] clusterHitPMTy;
-            delete[] clusterHitPMTz;
-            delete[] clusterHitPMTDirX;
-            delete[] clusterHitPMTDirY;
-            delete[] clusterHitPMTDirZ;
-            delete[] clusterHitPMTTimeRes;
-            delete[] clusterPMTid;
+                delete[] highEReco.hitRing;
+                delete[] clusterHitPMTPEs;
+                delete[] clusterHitPMT;
+                delete[] clusterHitT;
+                delete[] clusterHitPMTx;
+                delete[] clusterHitPMTy;
+                delete[] clusterHitPMTz;
+                delete[] clusterHitPMTDirX;
+                delete[] clusterHitPMTDirY;
+                delete[] clusterHitPMTDirZ;
+                delete[] clusterHitPMTTimeRes;
+                delete[] clusterPMTid;
+                delete[] peakTheta;
+                delete[] peakPhi;
+                delete[] ringPE;
+            }
+//    break;
 
         trueDirX = TMath::Sin(trueDirTheta) * TMath::Cos(trueDirPhi);
         trueDirY = TMath::Sin(trueDirTheta) * TMath::Sin(trueDirPhi);
@@ -798,15 +794,13 @@ void RecoForLookup(TString filename = "out.root",
         double recoToWallZ = 1100 - recoVtxZ[0]*TMath::Abs(recoDirZ[0]);
         recoToWall = recoToWallR<recoToWallZ ? recoToWallR : recoToWallZ;
         cout << "True vtx: (" << trueVtxX << "," << trueVtxY << "," << trueVtxZ << ")  time: " << trueTime
-        << "  dir: (" << trueDirX << "," << trueDirY << "," << trueDirZ << ")  Energy:" << trueKE << endl;
+             << "  dir: (" << trueDirX << "," << trueDirY << "," << trueDirZ << ")  Energy:" << trueKE << endl;
         cout << "Reco vtx: (" << recoVtxX[0] << "," << recoVtxY[0] << "," << recoVtxZ[0] << ")  time: " << recoTime[0]
         << "  dir: (" << recoDirX[0] << "," << recoDirY[0] << "," << recoDirZ[0] << ")  Energy:" << recoEnergy[0] << endl;
         cout << "Diff vtx: (" << diffVtxX << "," << diffVtxY << "," << diffVtxZ << ")  time: " << diffTime
         << "  dir: (" << diffDirX << "," << diffDirY << "," << diffDirZ << ")  Energy:" << diffKE << endl;
         cout << "Diff vtx abs: " << diffVtxAbs << "     Diff dir abs: " << diffDirAbs*180./TMath::Pi() << endl << endl;
         LowETree->Fill();
-        HighEElectronTree->Fill();
-        HighEMuonTree->Fill();
         FinalTree->Fill();
         DebugTree->Fill();
         delete[] clusterHitCounts;
@@ -815,14 +809,10 @@ void RecoForLookup(TString filename = "out.root",
 
     f_out.cd();
     LowETree->Write();
-    HighEElectronTree->Write();
-    HighEMuonTree->Write();
     FinalTree->Write();
     DebugTree->Write();
     delete mTR;
     delete LowETree;
-    delete HighEElectronTree;
-    delete HighEMuonTree;
     delete FinalTree;
     delete DebugTree;
 //

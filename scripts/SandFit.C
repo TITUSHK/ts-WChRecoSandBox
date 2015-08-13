@@ -299,6 +299,10 @@ void SandFit(TString filename = "out.root",
 
     bool isHighE[maxSubEvts];
     int ringPEs[maxSubEvts];
+    double trueExpectedPEHighEMuon[maxSubEvts];
+    double recoExpectedPEHighEMuon[maxSubEvts];
+    double trueExpectedPEHighEElectron[maxSubEvts];
+    double recoExpectedPEHighEElectron[maxSubEvts];
     double trueVtxX;
     double trueVtxY;
     double trueVtxZ;
@@ -402,7 +406,7 @@ void SandFit(TString filename = "out.root",
     DebugTree->Branch("nCaptures",&nCaptures,"nCaptures/I");
     DebugTree->Branch("nPMTs",&totalPMTs,"nPMTs/I");
     DebugTree->Branch("pmtID",pmtIDall,Form("pmtID[%i]/I",totalPMTs));
-    DebugTree->Branch("pmtXtt",pmtXall,Form("pmtX[%i]/D",totalPMTs));
+    DebugTree->Branch("pmtX",pmtXall,Form("pmtX[%i]/D",totalPMTs));
     DebugTree->Branch("pmtY",pmtYall,Form("pmtY[%i]/D",totalPMTs));
     DebugTree->Branch("pmtZ",pmtZall,Form("pmtZ[%i]/D",totalPMTs));
     DebugTree->Branch("pmtDirX",pmtDirXall,Form("pmtDirX[%i]/D",totalPMTs));
@@ -413,6 +417,10 @@ void SandFit(TString filename = "out.root",
 //    DebugTree->Branch("trueExpectedPEHighEElectron", trueExpectedPEHighEElectron,Form("trueExpectedPEHighEElectron[nSubevents][%i]/D",totalPMTs));
 //    DebugTree->Branch("recoExpectedPEHighEMuon", recoExpectedPEHighEMuon,Form("recoExpectedPEHighEMuon[nSubevents][%i]/D",totalPMTs));
 //    DebugTree->Branch("recoExpectedPEHighEElectron", recoExpectedPEHighEElectron,Form("recoExpectedPEHighEElectron[nSubevents][%i]/D",totalPMTs));
+    DebugTree->Branch("trueExpectedPEHighEMuon",trueExpectedPEHighEMuon,"trueExpectedPEHighEMuon[nSubevents]/D");
+    DebugTree->Branch("recoExpectedPEHighEMuon",recoExpectedPEHighEMuon,"recoExpectedPEHighEMuon[nSubevents]/D");
+    DebugTree->Branch("trueExpectedPEHighEElectron",trueExpectedPEHighEElectron,"trueExpectedPEHighEElectron[nSubevents]/D");
+    DebugTree->Branch("recoExpectedPEHighEElectron",recoExpectedPEHighEElectron,"recoExpectedPEHighEElectron[nSubevents]/D");
     DebugTree->Branch("observedPE",observedPE,Form("observedPE[nSubevents][%i]/I",totalPMTs));
     DebugTree->Branch("allPE",allPE,Form("allPE[nClusters][%i]/I",totalPMTs));
 //    DebugTree->Branch("ring1PE",ring1PE,Form("ring1PE[nSubevents][%i]/I",totalPMTs));
@@ -498,9 +506,9 @@ void SandFit(TString filename = "out.root",
         double trueDirPhi = TMath::ATan2(trueDirY, trueDirX);
 
         int totalPEs = mTR->get_nhits();
-        if(totalPEs<10
-       //     || trueDWall < 100 || abs(mode) != 1 || trueKE < 400 || trueKE > 1000
-                ) { //ignore events with too few PEs
+        if(totalPEs<10 //ignore events with too few PEs
+//            || trueDWall < 100 || abs(mode) != 1 || trueKE < 400 || trueKE > 1000 //only include events easy to reconstruct for now
+                ) {
             cout << "----- Skipping event! -----" << endl << endl;
             nSubevents =0;
             nClusters=0;
@@ -589,8 +597,8 @@ void SandFit(TString filename = "out.root",
             recoEnergyLowE[iCluster] = lowEReco.ReconstructEnergy(nHits, hitx, hity, hitz);
             // Do Low-E reco
             lowEReco.DoLowEReco(i, nHits, hitx, hity, hitz, hitt, recoChkvAngleLowE[iCluster],
-                     recoVtxXLowE[iCluster], recoVtxYLowE[iCluster], recoVtxZLowE[iCluster], recoTimeLowE[iCluster],
-                     recoDirXLowE[iCluster], recoDirYLowE[iCluster], recoDirZLowE[iCluster]);
+                                recoVtxXLowE[iCluster], recoVtxYLowE[iCluster], recoVtxZLowE[iCluster], recoTimeLowE[iCluster],
+                                recoDirXLowE[iCluster], recoDirYLowE[iCluster], recoDirZLowE[iCluster]);
             delete[] hitx;
             delete[] hity;
             delete[] hitz;
@@ -673,7 +681,8 @@ void SandFit(TString filename = "out.root",
             highEReco.hitPMTDirZ = new double[highEReco.nHitPMT];
             highEReco.hitPMTTimeRes = new double[highEReco.nHitPMT];
             int *pmtID = new int[highEReco.nHitPMT];
-            highEReco.hitPMTPEs = new int[highEReco.nHitPMT](); for(int iPMT =0; iPMT <highEReco.nHitPMT; iPMT++) highEReco.hitPMTPEs[iPMT]=0;
+            highEReco.hitPMTPEs = new int[highEReco.nHitPMT]();
+            for (int iPMT = 0; iPMT < highEReco.nHitPMT; iPMT++) highEReco.hitPMTPEs[iPMT] = 0;
             int *newPMTids = new int[totalPMTs];
             for (int iPMT = 0, iPMT2 = 0; iPMT < totalPMTs; iPMT++) {
                 if (allPE[iCluster][iPMT] == 0) continue;
@@ -750,7 +759,7 @@ void SandFit(TString filename = "out.root",
                 recoChkvAngle[subevent+iRing] = recoChkvAngle[subevent];
                 for(int iPMT=0; iPMT<totalPMTs; iPMT++) observedPE[subevent+iRing][iPMT] = 0;
             }
-
+            ringPE[0] = clusterPEs;
             for(int iRing = 0; iRing < recoNRings[iCluster]; iRing++, subevent++){
                 ringPEs[subevent] = ringPE[iRing];
                 double recoDirTheta = peakTheta[iRing];
@@ -767,7 +776,7 @@ void SandFit(TString filename = "out.root",
 //                cout << iRing << " " << ringPEs[subevent] << ":" << endl;
                 int nPEnew = 0;
                 for (int iPE = 0; iPE < clusterPEs; iPE++) {
-                    if (highEReco.hitRing[iPE] != iRing+1) continue;
+                    if (highEReco.hitRing[iPE] != iRing+1 && iRing>0) continue;
 //                    cout << iPE << " " << nPEnew << endl;
                     newHitT[nPEnew] = clusterHitT[iPE];
                     newHitPMT[nPEnew] = clusterHitPMT[iPE];
@@ -941,32 +950,21 @@ void SandFit(TString filename = "out.root",
                 recoDirYHighEElectron[subevent] =
                         TMath::Sin(recoDirThetaHighEElectron) * TMath::Sin(recoDirPhiHighEElectron);
                 recoDirZHighEElectron[subevent] = TMath::Cos(recoDirThetaHighEElectron);
-//                for (int iPMT = 0, iHitPMT = 0, iUnhitPMT = 0; iPMT < totalPMTs; iPMT++) {
-//                    bool isHit = allPE[subevent][iPMT] > 0;
-//                    int thisID = isHit ? iHitPMT++ : iUnhitPMT++;
-//                    trueExpectedPEHighEElectron[subevent][iPMT] = highEReco.ExpectedPMTPhotoelectrons(trueVtxX,
-//                                                                                                     trueVtxY,
-//                                                                                                     trueVtxZ,
-//                                                                                                     trueDirX,
-//                                                                                                     trueDirY,
-//                                                                                                     trueDirZ,
-//                                                                                                     thisID,
-//                                                                                                     isHit,
-//                                                                                                     trueKE,
-//                                                                                                     11);
-//                    recoExpectedPEHighEElectron[subevent][iPMT] = highEReco.ExpectedPMTPhotoelectrons(
-//                            recoVtxXHighEElectron[subevent],
-//                            recoVtxYHighEElectron[subevent],
-//                            recoVtxZHighEElectron[subevent],
-//                            recoDirXHighEElectron[subevent],
-//                            recoDirYHighEElectron[subevent],
-//                            recoDirZHighEElectron[subevent],
-//                            thisID,
-//                            isHit,
-//                            recoEnergyHighEElectron[subevent],
-//                            11);
-//                }
-
+                trueExpectedPEHighEElectron[subevent] = 0;
+                recoExpectedPEHighEElectron[subevent] = 0;
+                for (int iPMT = 0, iHitPMT = 0, iUnhitPMT = 0; iPMT < totalPMTs; iPMT++) {
+                    bool isHit = observedPE[subevent][iPMT] > 0;
+                    int thisID = isHit ? iHitPMT++ : iUnhitPMT++;
+                    trueExpectedPEHighEElectron[subevent] += highEReco.ExpectedPMTPhotoelectrons(
+                            trueVtxX, trueVtxY, trueVtxZ,
+                            trueDirX, trueDirY, trueDirZ,
+                            thisID, isHit, trueKE, 11);
+                    recoExpectedPEHighEElectron[subevent] += highEReco.ExpectedPMTPhotoelectrons(
+                            recoVtxXHighEElectron[subevent], recoVtxYHighEElectron[subevent], recoVtxZHighEElectron[subevent],
+                            recoDirXHighEElectron[subevent], recoDirYHighEElectron[subevent], recoDirZHighEElectron[subevent],
+                            thisID, isHit, recoEnergyHighEElectron[subevent], 11);
+                }
+                cout << "Expected PE: true: " << trueExpectedPEHighEElectron[subevent] << "  reco: " << recoExpectedPEHighEElectron[subevent] << "  observed: " << ringPEs[subevent] << endl;
                 // Perform maximum likelihood for muon hypothesis
                 cout << "Fit for muon hypothesis" << endl;
                 recoVtxXHighEMuon[subevent] = recoVtxX[subevent];
@@ -984,31 +982,21 @@ void SandFit(TString filename = "out.root",
                 recoDirXHighEMuon[subevent] = TMath::Sin(recoDirThetaHighEMuon) * TMath::Cos(recoDirPhiHighEMuon);
                 recoDirYHighEMuon[subevent] = TMath::Sin(recoDirThetaHighEMuon) * TMath::Sin(recoDirPhiHighEMuon);
                 recoDirZHighEMuon[subevent] = TMath::Cos(recoDirThetaHighEMuon);
-//                for (int iPMT = 0, iHitPMT = 0, iUnhitPMT = 0; iPMT < totalPMTs; iPMT++) {
-//                    bool isHit = allPE[subevent][iPMT] > 0;
-//                    int thisID = isHit ? iHitPMT++ : iUnhitPMT++;
-//                    trueExpectedPEHighEMuon[subevent][iPMT] = highEReco.ExpectedPMTPhotoelectrons(trueVtxX,
-//                                                                                                 trueVtxY,
-//                                                                                                 trueVtxZ,
-//                                                                                                 trueDirX,
-//                                                                                                 trueDirY,
-//                                                                                                 trueDirZ,
-//                                                                                                 thisID,
-//                                                                                                 isHit,
-//                                                                                                 trueKE,
-//                                                                                                 13);
-//                    recoExpectedPEHighEMuon[subevent][iPMT] = highEReco.ExpectedPMTPhotoelectrons(
-//                            recoVtxXHighEMuon[subevent],
-//                            recoVtxYHighEMuon[subevent],
-//                            recoVtxZHighEMuon[subevent],
-//                            recoDirXHighEMuon[subevent],
-//                            recoDirYHighEMuon[subevent],
-//                            recoDirZHighEMuon[subevent],
-//                            thisID,
-//                            isHit,
-//                            recoEnergyHighEMuon[subevent],
-//                            13);
-//                }
+                trueExpectedPEHighEMuon[subevent] = 0;
+                recoExpectedPEHighEMuon[subevent] = 0;
+                for (int iPMT = 0, iHitPMT = 0, iUnhitPMT = 0; iPMT < totalPMTs; iPMT++) {
+                    bool isHit = observedPE[subevent][iPMT] > 0;
+                    int thisID = isHit ? iHitPMT++ : iUnhitPMT++;
+                    trueExpectedPEHighEMuon[subevent] += highEReco.ExpectedPMTPhotoelectrons(
+                            trueVtxX, trueVtxY, trueVtxZ,
+                            trueDirX, trueDirY, trueDirZ,
+                            thisID, isHit, trueKE, 13);
+                    recoExpectedPEHighEMuon[subevent] += highEReco.ExpectedPMTPhotoelectrons(
+                            recoVtxXHighEMuon[subevent], recoVtxYHighEMuon[subevent], recoVtxZHighEMuon[subevent],
+                            recoDirXHighEMuon[subevent], recoDirYHighEMuon[subevent], recoDirZHighEMuon[subevent],
+                            thisID, isHit, recoEnergyHighEMuon[subevent], 13);
+                }
+                cout << "Expected PE: true: " << trueExpectedPEHighEMuon[subevent] << "  reco: " << recoExpectedPEHighEMuon[subevent] << "  observed: " << ringPEs[subevent] << endl;
 
                 cout << "Reco  LnL_mu - LnL_e = " << recoLnLHighEMuon[subevent] - recoLnLHighEElectron[subevent] << endl;
                 cout << endl << endl;

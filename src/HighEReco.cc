@@ -357,7 +357,7 @@ int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, dou
         tmpRingPEs[nrings]=FindRing(vtxX,vtxY,vtxZ,vtxT,tmpThetaPeaks[nrings],tmpPhiPeaks[nrings],nrings+1,useTrack);
         if(tmpRingPEs[nrings]<0.09*tmpRingPEs[0]) break;
     }
-/*
+
     if(nrings <2){
         ringPEs[0] = tmpRingPEs[0];
         thetaPeaks[0] = tmpThetaPeaks[0];
@@ -365,7 +365,7 @@ int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, dou
     }
     else {
         //Redistribute hits to rings
-
+/*
         double cherenkovAngle = TMath::ACos(1.0 / N_REF);
         double *dirX = new double[nrings];
         double *dirY = new double[nrings];
@@ -394,7 +394,7 @@ int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, dou
         delete[] dirX;
         delete[] dirY;
         delete[] dirZ;
-
+*/
         //Reorder rings to be in order of number of hits
         for (int iRing = 0; iRing < nrings; iRing++) ringPEs[iRing] = tmpRingPEs[iRing];
         std::sort(ringPEs, ringPEs + nrings, std::greater<int>());
@@ -414,12 +414,13 @@ int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, dou
         }
         delete[] newOrder;
     }
-*/
+/*
     for (int iRing = 0; iRing < nrings; iRing++){
         ringPEs[iRing] = tmpRingPEs[iRing];
         thetaPeaks[iRing] = tmpThetaPeaks[iRing];
         phiPeaks[iRing] = tmpPhiPeaks[iRing];
     }
+*/
     delete[] tmpThetaPeaks;
     delete[] tmpPhiPeaks;
     delete[] tmpRingPEs;
@@ -427,7 +428,7 @@ int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, dou
 }
 
 // Calculate expected number of photoelectrons based on Cherenkov pattern
-double HighEReco::ExpectedPMTPhotoelectrons(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu, double *expectedTime = 0){
+double HighEReco::ExpectedPMTPhotoelectrons(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu, double *expectedTime){
     //cout << "test" << hitPMTDirX[0]<<endl;i
     TH3D * photonsLookup = (ipnu == 11) ? electronPhotons : muonPhotons;
     TH3D * timesLookup = (ipnu == 11) ? electronTimes : muonTimes;
@@ -459,19 +460,25 @@ double HighEReco::ExpectedPMTPhotoelectrons(double vtxX, double vtxY, double vtx
     double maxKE = photonsLookup->GetZaxis()->GetBinCenter(photonsLookup->GetNbinsZ());
     if(kineticEnergy >= maxKE) kineticEnergy = maxKE-0.0001;
 //    if(pmt==0) cout << pmtDist << " " << pmtTrackAngle << " " << kineticEnergy << endl;
-    double expectedPhotons = photonsLookup->Interpolate(pmtDist, pmtTrackAngle, kineticEnergy);
+
+    double expectedPhotons = photonsLookup->Interpolate(pmtDist, pmtTrackAngle, kineticEnergy);//*100000000;//Remove this factor when likelihood tables normalisation is fixed
     if(expectedTime) *expectedTime = timesLookup->Interpolate(pmtDist, pmtTrackAngle, kineticEnergy);
-    double QE = 0.44; //WChSandBox has half as many photons so need so double QE
-    double PMTsize = 12*2.54/2.; //12 inch diameter
+
+    double QE = 2.*0.22; //WChSandBox has half as many photons so need so double QE
+
     //Account for solid angle covered by PMT at given distance
-    double solidAngleFactor = (1.-pmtDist/ TMath::Sqrt(pmtDist*pmtDist+PMTsize*PMTsize));
-    solidAngleFactor /= (TMath::Pi()/500.);
+    double PMTsize = 12*2.54/2.; //12 inch diameter
+    double solidAngleFactor = (1.-pmtDist/ TMath::Sqrt(pmtDist*pmtDist+PMTsize*PMTsize)); // solid angle covered by PMT
+    double halfAngleBinWidth = photonsLookup->GetYaxis()->GetBinWidth(photonsLookup->GetYaxis()->FindFixBin(pmtTrackAngle))/2.;
+    solidAngleFactor /= 2*TMath::Sin(pmtTrackAngle)*TMath::Sin(halfAngleBinWidth); //solid angle covered by bin in theta
+
     //Account for reduction of solid angle covered by PMT not directly facing towards vertex
     double cosPMTangle = isHit ?
                          -(vtxToPMTx* hitPMTDirX[pmt] + vtxToPMTy* hitPMTDirY[pmt] + vtxToPMTz* hitPMTDirZ[pmt])/pmtDist :
                          -(vtxToPMTx* unhitPMTDirX[pmt] + vtxToPMTy* unhitPMTDirY[pmt] + vtxToPMTz* unhitPMTDirZ[pmt])/pmtDist;
-    double expectedPhotoelectrons = expectedPhotons*QE*solidAngleFactor*cosPMTangle*250000;
-    if(expectedPhotoelectrons<0.0001) expectedPhotoelectrons = 0.0001;
+
+    double expectedPhotoelectrons = expectedPhotons*QE*solidAngleFactor*cosPMTangle;
+    if(expectedPhotoelectrons<0.00001) expectedPhotoelectrons = 0.00001;
     return expectedPhotoelectrons;
 }
 
@@ -485,7 +492,7 @@ double HighEReco::PMTlnLikelihood(double vtxX, double vtxY, double vtxZ, double 
 }
 
 // Calculate total likelihood for all PMTs
-double HighEReco::LnLikelihood(const double *par, int ipnu, bool total) {
+double HighEReco::LnLikelihood(const double *par, int ipnu, bool total, bool print) {
     double vtxZ = par[1];
     double vtxY = par[2];
     double vtxX = par[3];
@@ -517,13 +524,13 @@ double HighEReco::LnLikelihood(const double *par, int ipnu, bool total) {
         hitExpectedPE[iPMT] = ExpectedPMTPhotoelectrons(vtxX,vtxY,vtxZ,dirX,dirY,dirZ,iPMT,true,kineticEnergy,ipnu,hitExpectedT+iPMT);
         totalExpectedPE += hitExpectedPE[iPMT];
         totalObservedPE += hitPMTPEs[iPMT];
-//        if(print)cout<<iPMT<<" "<<hitPMTx[iPMT]<<" "<<hitPMTy[iPMT]<<" "<<hitPMTz[iPMT]<<" "<<hitPMTDirX[iPMT]<<" "<<hitPMTDirY[iPMT]<<" "<<hitPMTDirZ[iPMT]<<" "<<hitExpectedPE[iPMT]<<" "<<hitPMTPEs[iPMT]<<endl;
+        if(print)cout<<iPMT<<" "<<hitPMTx[iPMT]<<" "<<hitPMTy[iPMT]<<" "<<hitPMTz[iPMT]<<" "<<hitPMTDirX[iPMT]<<" "<<hitPMTDirY[iPMT]<<" "<<hitPMTDirZ[iPMT]<<" "<<hitExpectedPE[iPMT]<<" "<<hitPMTPEs[iPMT]<<endl;
     }
     //Unhit PMTs
     double *unhitExpectedPE = new double[nUnhitPMT];
     for(int iPMT = 0; iPMT< nUnhitPMT; iPMT++){
         unhitExpectedPE[iPMT] = ExpectedPMTPhotoelectrons(vtxX,vtxY,vtxZ,dirX,dirY,dirZ,iPMT,false,kineticEnergy,ipnu);
-//        if(print)cout<<iPMT<<" "<<unhitPMTx[iPMT]<<" "<<unhitPMTy[iPMT]<<" "<<unhitPMTz[iPMT]<<" "<<unhitPMTDirX[iPMT]<<" "<<unhitPMTDirY[iPMT]<<" "<<unhitPMTDirZ[iPMT]<<" "<<unhitExpectedPE[iPMT]<<" "<<0<<endl;
+        if(print)cout<<iPMT<<" "<<unhitPMTx[iPMT]<<" "<<unhitPMTy[iPMT]<<" "<<unhitPMTz[iPMT]<<" "<<unhitPMTDirX[iPMT]<<" "<<unhitPMTDirY[iPMT]<<" "<<unhitPMTDirZ[iPMT]<<" "<<unhitExpectedPE[iPMT]<<" "<<0<<endl;
     }
     //Include only PMTs with highest expected # of hits (add 10% as many unhit PMTs as hit PMTs)
     int n;// = (nHitPMT + 1)/10;
@@ -534,19 +541,25 @@ double HighEReco::LnLikelihood(const double *par, int ipnu, bool total) {
 //        nth_element(unhitExpectedPE,unhitExpectedPE+nUnhitPMT-n,unhitExpectedPE+nUnhitPMT);
     for(int iPMT = nUnhitPMT-n; iPMT<nUnhitPMT; iPMT++) //use PMTs with larger expected PE than nth element
         totalExpectedPE += unhitExpectedPE[iPMT];
+    if(print) cout << totalExpectedPE << " " << totalObservedPE << endl;
     if(!total){
         double normalisation = 1./totalExpectedPE;
         for(int iPMT = 0; iPMT< nHitPMT; iPMT++){
-            //Multinomial
+            //Poisson:
+            //lnLikelihood += hitPMTPEs[iPMT]*TMath::Log(hitExpectedPE[iPMT]);
+
+            //Multinomial:
             lnLikelihood += hitPMTPEs[iPMT]*TMath::Log(hitExpectedPE[iPMT]*normalisation);
 
-            //Negative Binomial, r=2
+            //Negative Binomial, r=2:
             //const double r = 1000;
             //double p = 1/(1+r/(normalisation*hitExpectedPE[iPMT]));
             //lnLikelihood += hitPMTPEs[iPMT]*TMath::Log(p)+r*TMath::Log(1-p);
         }
+        //Poisson:
+        //lnLikelihood -= totalExpectedPE;
         for(int iPE = 0; iPE<nPEs; iPE++){
-            //Gaussian for time
+            //Gaussian for time:
             const double sigma = 4.;
             lnLikelihood -= 0.5*TMath::Power((hitT[iPE]-hitExpectedT[hitPMT[iPE]])/(sigma+hitPMTTimeRes[hitPMT[iPE]]),2);
         }
@@ -563,30 +576,22 @@ double HighEReco::LnLikelihood(const double *par, int ipnu, bool total) {
 }
 
 double HighEReco::ElectronLnLikelihood(const double *par){
-    return -LnLikelihood(par, 11, false);
+    return -LnLikelihood(par, 11, false, false);
 }
 
 double HighEReco::MuonLnLikelihood(const double *par){
 //    for(int i =0; i<8; i++) cout << par[i] << " ";
-    double result = -LnLikelihood(par, 13, false);
+    double result = -LnLikelihood(par, 13, false, false);
 //    cout << result << endl;
     return result;
 }
 
 double HighEReco::ElectronLnLikelihoodTotal(const double *par){
-    return -LnLikelihood(par, 11, true);
+    return -LnLikelihood(par, 11, true, false);
 }
 
 double HighEReco::MuonLnLikelihoodTotal(const double *par){
-    return -LnLikelihood(par, 13, true);
-}
-
-double HighEReco::ElectronLnLikelihood2(const double *par) {
-    return -LnLikelihood(par, 11, false);
-}
-
-double HighEReco::MuonLnLikelihood2(const double *par) {
-    return -LnLikelihood(par, 13, false);
+    return -LnLikelihood(par, 13, true, false);
 }
 
 void HighEReco::PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &cherenkovAngle) {
@@ -712,7 +717,7 @@ void HighEReco::TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, d
 void HighEReco::LikelihoodFit(double &trackCorrection, double &recoVtxX, double &recoVtxY,
                    double &recoVtxZ, double &recoT, double &recoDirPhi,
                    double &recoDirTheta, double &recoKE, double &recoLnL, int ipnu) {
-//  trueParL= {trueVtxZ,trueVtxY,trueVtxX,trueT,trueDirCosTheta,trueDirPhi, trueKE};//Set up minimizer:
+  //Set up minimizer:
     ROOT::Math::Minimizer*minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
     minimizer->SetMaxFunctionCalls(1000000);
 //    minimizer->SetTolerance(0.0001);
@@ -797,7 +802,7 @@ void HighEReco::LikelihoodFit(double &trackCorrection, double &recoVtxX, double 
     TMath::Sin(recoDirTheta)* TMath::Sin(recoDirPhi)<<" "<< recoDirCosTheta <<")"
     <<" KE: " << recoKE << endl;
     double recoPar[8]={0,recoVtxZ,recoVtxY,recoVtxX,recoT,recoDirCosTheta,recoDirPhi, recoKE};
-    recoLnL = LnLikelihood(recoPar, ipnu, false);
+    recoLnL = LnLikelihood(recoPar, ipnu, false, false);
 //  trueElectronLnL = -func(trueParL, true);
 //  cout << "Log Likelihood (electron) True: "<< trueElectronLnL <<"  Reco: " << recoElectronLnL << endl <<endl;
 }

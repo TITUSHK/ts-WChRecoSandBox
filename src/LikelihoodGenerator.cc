@@ -366,17 +366,16 @@ void LikelihoodGenerator::Loop(bool isElectron, int start, int end)
 
 
 
-void LikelihoodGenerator::Loop2(int start,int end)
-{
+void LikelihoodGenerator::Loop2(int start,int end){
   std::cout << "Generating likelihood tables... " << std::endl;
   if (fChain == 0) return;
-  Long64_t nentries = fChain->GetEntriesFast();
+  Long64_t nentries = fChain->GetEntries();
   if(end <= start) end = nentries;
   //h = new TH2D("h","h",100,0,500,100,angleBins);
   hPDF = new TH2D("h","h",1000,0,500,1000,0,TMath::Pi());
 
   double min_pmt_dist = 0, max_pmt_dist =2460; //max depends on detector size
-  double min_pmt_angle = 0, max_pmt_angle = TMath::Pi();
+  double min_pmt_angle = 0., max_pmt_angle = TMath::Pi();
   const int pmt_dist_bins = 250;
   const int pmt_angle_bins = 500;
   double pmt_dist_binwidth = (max_pmt_dist - min_pmt_dist)/ pmt_dist_bins;
@@ -394,20 +393,21 @@ void LikelihoodGenerator::Loop2(int start,int end)
 
   const int n=2;
   Long64_t nbytes = 0, nb = 0;
-  int count = end-start;
+  int count = 0;
   for (Long64_t jentry=start; jentry<end;jentry++) {
     if(jentry%10==0) std::cout << jentry/10 << " " << std::endl;
     Long64_t ientry = LoadTree(jentry);
     if (ientry < 0) break;
     nb = fChain->GetEntry(jentry);   nbytes += nb;
     // if (Cut(ientry) < 0) continue;
+    count++;
     int ipart=0;
     while(part_parentid[ipart]!=0) ipart++;
     double QE_Wavelengths[20] = {280., 300., 320., 340., 360., 380., 400., 420., 440., 460., 480., 500., 520., 540., 560., 580., 600., 620., 640., 660.};
     double QE_Factor[20] = {0.00, .066, .405, .801, .962, .976, 1., .957, .899, .791, .664, .550, .382, .205, .126, .069, .036, .024, .007, 0.00};
     for(int iphot=0; iphot<nphot; iphot+=n){ // +=n so fewer photons are used to reduce time
       if(phot_tEnd[iphot]>150) continue;
-//      if(phot_parentid[iphot] != 1) continue;      
+//      if(phot_parentid[iphot] != 1) continue;
       if(phot_wavelength[iphot]<QE_Wavelengths[0]) continue;
       if(phot_wavelength[iphot]>QE_Wavelengths[19]) continue;
       int i = (int) (phot_wavelength[iphot]/20.-14);
@@ -415,7 +415,7 @@ void LikelihoodGenerator::Loop2(int start,int end)
       //for(int i=0; i<19; i++) {
       //  if (phot_wavelength[iphot] < QE_Wavelengths[i + 1]) {
           double delta = (phot_wavelength[iphot] - QE_Wavelengths[i])/(QE_Wavelengths[i + 1] - QE_Wavelengths[i]);
-          qe = (QE_Factor[i] * (1 - delta) + QE_Factor[i + 1] * delta) / 100.;
+          qe = QE_Factor[i]*(1 - delta) + QE_Factor[i + 1]*delta;
       //    break;
       //  }
       //}
@@ -443,19 +443,18 @@ void LikelihoodGenerator::Loop2(int start,int end)
       double al = phot_xDir*part_pxStart[ipart]+phot_yDir*part_pyStart[ipart]+phot_zDir*part_pzStart[ipart];
 
       double tStart = phot_tStart[iphot];
-      double invSpeed = (phot_tEnd[iphot]-tStart)/phot_dist_max;
+      double speed = phot_dist_max/(phot_tEnd[iphot]-tStart);
       //Possibly photon gets closer to vertex initially
       if(b<0){
         double pmt_dist_min = TMath::Sqrt(a- b2);
         int min_pmt_dist_bin = TMath::CeilNint(pmt_dist_min/pmt_dist_binwidth)+1;
         for(int pmt_dist_bin = TMath::FloorNint(pmt_dist_start/pmt_dist_binwidth)+1; pmt_dist_bin>=min_pmt_dist_bin; pmt_dist_bin--){
           double d = (pmt_dist_bin-1)*pmt_dist_binwidth;
-          double l = -b-TMath::Sqrt(b2 -a+d*d);
+          double l = -b-TMath::Sqrt(b2-a+d*d);
           double angle = TMath::ACos((a0+l*al)/d);
-          int angle_bin = hPhotonCount->GetYaxis()->FindFixBin(angle);
-          hPhotonCount->AddBinContent(hPhotonCount->GetBin(pmt_dist_bin,angle_bin),qe);
-          double time = tStart+l*invSpeed;
-          hTime->AddBinContent(hTime->GetBin(pmt_dist_bin,angle_bin),time*qe);
+          hPhotonCount->Fill(d,angle,qe);
+          double time = tStart+l/speed;
+          hTime->Fill(d,angle,time*qe);
         }
         pmt_dist_start = pmt_dist_min;
       }
@@ -473,17 +472,16 @@ void LikelihoodGenerator::Loop2(int start,int end)
         double d = (pmt_dist_bin-1)*pmt_dist_binwidth;
         double l = -b+TMath::Sqrt(b2 -a+d*d);
         double angle = TMath::ACos((a0+l*al)/d);
-        int angle_bin = hPhotonCount->GetYaxis()->FindFixBin(angle);
         double attenuationProb = (l<phot_dist_max) ? 1 : TMath::Exp(-(l-phot_dist_max)/9000.);
-        hPhotonCount->AddBinContent(hPhotonCount->GetBin(pmt_dist_bin,angle_bin),qe*attenuationProb);
-        double time = tStart+l*invSpeed;
-        hTime->AddBinContent(hTime->GetBin(pmt_dist_bin,angle_bin),time*qe*attenuationProb);
+        hPhotonCount->Fill(d,angle,qe*attenuationProb);
+        double time = tStart+l/speed;
+        hTime->Fill(d,angle,time*qe*attenuationProb);
       }
     }
   }
-  hTime->SetEntries(1); //needed because hist is filled using AddBinContent
+  //hTime->SetEntries(1); //needed because hist is filled using AddBinContent
   hTime->Divide(hPhotonCount); //Average arrival time
-  hPhotonCount->SetEntries(1); //needed because hist is filled using AddBinContent
+  //hPhotonCount->SetEntries(1); //needed because hist is filled using AddBinContent
   hPhotonCount->Scale(n/(double)count); //Number of photons per event, times by n because only used 1/n of the photons to save time
 }
 

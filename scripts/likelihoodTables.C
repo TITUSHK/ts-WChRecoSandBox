@@ -79,11 +79,11 @@ void likelihoodTablesAll(const char *name) {
   likelihoodTables->Close();
 }
 
-void likelihoodTables(int KE, const char *emu, int i, const char *name) {
-  TFile * likelihoodTable = TFile::Open(Form("/data/hyperk/wchsandbox_reco/likelihoods/likelihood_table_%s_%s_%i_%i.root",name,emu,KE,i), "RECREATE");
+void likelihoodTables(const char * infile, int KE, const char *emu, int i, const char *name) {
+  TFile * likelihoodTable = TFile::Open(Form("likelihood_table_%s_%s_%i_%i.root",name,emu,KE,i), "RECREATE");
   cout << KE << "MeV:" << endl;
   TChain * ch = new TChain("EventTree");
-  ch->AddFile(TString::Format("/data/hyperk/wchsandbox_reco/fix/%s_%iMeV/%s_%iMeV_%i_FullEvent.root",emu,KE,emu,KE,i));
+  ch->AddFile(infile);
   LikelihoodGenerator * lg = new LikelihoodGenerator(ch);
   //lg->Loop(true);
   lg->Loop2();
@@ -98,12 +98,12 @@ void likelihoodTables(int KE, const char *emu, int i, const char *name) {
 }
 
 void combineTables(const char *name){
-  const int nKE = 21;
-  int binCentresKE[nKE] = {50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050/*,3000*/};
-  double binEdgesKE[nKE+1] = {25,75,125,175,225,275,325,375,425,475,525,575,625,675,725,775,825,875,925,975,1025,1075/*,4925*/};
+  const int nKE = 22;
+  int binCentresKE[nKE] = {50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050,3000};
+  double binEdgesKE[nKE+1] = {25,75,125,175,225,275,325,375,425,475,525,575,625,675,725,775,825,875,925,975,1025,1075,4925};
   TFile * likelihoodTables = TFile::Open(Form("likelihood_tables_%s.root",name), "RECREATE");
   double min_pmt_dist = 0, max_pmt_dist =2460; //max depends on detector size
-  double min_pmt_angle = 0, max_pmt_angle = TMath::Pi();
+  double min_pmt_angle = 0., max_pmt_angle = TMath::Pi();
   const int pmt_dist_bins = 250;
   const int pmt_angle_bins = 500;
   double pmt_dist_binwidth = (max_pmt_dist - min_pmt_dist)/ pmt_dist_bins;
@@ -128,7 +128,7 @@ void combineTables(const char *name){
   for(int iKE = 0; iKE< nKE; iKE++) {
     int KE = binCentresKE[iKE];
     cout << KE << "MeV:" << endl;
-    int fileCount = /*iKE==nKE ? 1 :*/ 5;
+    int fileCount = iKE==nKE-1 ? 1 : 5;
     TH2D * hePhotonCount = new TH2D("hep", "hep", pmt_dist_bins, binEdgesPMTDist, pmt_angle_bins, binEdgesPMTAngle);
     TH2D * hmuPhotonCount = new TH2D("hmup", "hmup", pmt_dist_bins, binEdgesPMTDist, pmt_angle_bins, binEdgesPMTAngle);
     TH2D * heTime = new TH2D("het", "het", pmt_dist_bins, binEdgesPMTDist, pmt_angle_bins, binEdgesPMTAngle);

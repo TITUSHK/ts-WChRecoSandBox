@@ -25,61 +25,57 @@ public :
 
    // Declaration of leaf types
    Int_t           nSubEvts;
-   Bool_t          isHighE[10];   //[nSubEvts]
-   Int_t           peak1nPEs[10];   //[nSubEvts]
+   Bool_t          isHighE[20];   //[nSubEvts]
+   Int_t           ringPEs[20];   //[nSubEvts]
    Double_t        trueKE;
    Double_t        diffVtxX;
    Double_t        diffVtxY;
    Double_t        diffVtxZ;
    Int_t           mode;
-   Double_t        recoVtxX[10];   //[nSubEvts]
-   Double_t        recoVtxY[10];   //[nSubEvts]
-   Double_t        recoVtxZ[10];   //[nSubEvts]
-   Double_t        recoDirX[10];   //[nSubEvts]
-   Double_t        recoDirY[10];   //[nSubEvts]
-   Double_t        recoDirZ[10];   //[nSubEvts]
+   Double_t        recoToWall[20];   //[nSubEvts]
+   Double_t        recoDWall[20];   //[nSubEvts]
+   Double_t        recoDirX[20];   //[nSubEvts]
+   Double_t        recoDirY[20];   //[nSubEvts]
+   Double_t        recoDirZ[20];   //[nSubEvts]
    Int_t           nSubEvts2;
-   Bool_t          isHighE2[10];   //[nSubEvts]
-   Int_t           peak1nPEs2[10];   //[nSubEvts]
+   Bool_t          isHighE2[20];   //[nSubEvts]
+   Int_t           ringPEs2[20];   //[nSubEvts]
    Double_t        trueKE2;
    Double_t        diffVtxX2;
    Double_t        diffVtxY2;
    Double_t        diffVtxZ2;
    Int_t           mode2;
-   Double_t        recoVtxX2[10];   //[nSubEvts]
-   Double_t        recoVtxY2[10];   //[nSubEvts]
-   Double_t        recoVtxZ2[10];   //[nSubEvts]
-   Double_t        recoDirX2[10];   //[nSubEvts]
-   Double_t        recoDirY2[10];   //[nSubEvts]
-   Double_t        recoDirZ2[10];   //[nSubEvts]
+   Double_t        recoToWall2[20];   //[nSubEvts]
+   Double_t        recoDWall2[20];   //[nSubEvts]
+   Double_t        recoDirX2[20];   //[nSubEvts]
+   Double_t        recoDirY2[20];   //[nSubEvts]
+   Double_t        recoDirZ2[20];   //[nSubEvts]
 
    // List of branches
    TBranch        *b_nSubEvts;   //!
    TBranch        *b_isHighE;   //!
-   TBranch        *b_peak1nPEs;   //!
+   TBranch        *b_ringPEs;   //!
    TBranch        *b_trueKE;   //!
    TBranch        *b_diffVtxX;   //!
    TBranch        *b_diffVtxY;   //!
    TBranch        *b_diffVtxZ;   //!
    TBranch        *b_mode;   //!
-   TBranch        *b_recoVtxX;   //!
-   TBranch        *b_recoVtxY;   //!
-   TBranch        *b_recoVtxZ;   //!
+   TBranch        *b_recoToWall;   //!
+   TBranch        *b_recoDWall;   //!
    TBranch        *b_recoDirX;   //!
    TBranch        *b_recoDirY;   //!
    TBranch        *b_recoDirZ;   //!
 
    TBranch        *b_nSubEvts2;   //!
    TBranch        *b_isHighE2;   //!
-   TBranch        *b_peak1nPEs2;   //!
+   TBranch        *b_ringPEs2;   //!
    TBranch        *b_trueKE2;   //!
    TBranch        *b_diffVtxX2;   //!
    TBranch        *b_diffVtxY2;   //!
    TBranch        *b_diffVtxZ2;   //!
    TBranch        *b_mode2;   //!
-   TBranch        *b_recoVtxX2;   //!
-   TBranch        *b_recoVtxY2;   //!
-   TBranch        *b_recoVtxZ2;   //!
+   TBranch        *b_recoToWall2;   //!
+   TBranch        *b_recoDWall2;   //!
    TBranch        *b_recoDirX2;   //!
    TBranch        *b_recoDirY2;   //!
    TBranch        *b_recoDirZ2;   //!
@@ -112,40 +108,31 @@ EnergyLookups::EnergyLookups(TTree *tree,TTree *tree2) : fChain(0), fChain2(0)
       TChain *f2=new TChain("Final_Reconstruction");
       TChain *le2=new TChain("Low_E");
       TChain *d2=new TChain("Debug");
-      for(int i=1001;i<1100;i++){
-         char* file=Form("/data/hyperk/wchsandbox_reco/flav_numu/nu_numu_%i/nu_numu_%i_lookupreco_12in.root",i,i);
-         f2->AddFile(file);
-         le2->AddFile(file);
-         d2->AddFile(file);
-
-         file=Form("/data/hyperk/wchsandbox_reco/flav_nue/nu_nue_%i/nu_nue_%i_lookupreco_12in.root",i,i);
-         f->AddFile(file);
-         le->AddFile(file);
-         d->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_antinumu/nu_antinumu_%i/nu_antinumu_%i_lookupreco_12in.root",i,i);
-         f2->AddFile(file);
-         le2->AddFile(file);
-         d2->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_antinue/nu_antinue_%i/nu_antinue_%i_lookupreco_12in.root",i,i);
-         f->AddFile(file);
-         le->AddFile(file);
-         d->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_numu/antinu_numu_%i/antinu_numu_%i_lookupreco_12in.root",i,i);
-         f2->AddFile(file);
-         le2->AddFile(file);
-         d2->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_nue/antinu_nue_%i/antinu_nue_%i_lookupreco_12in.root",i,i);
-         f->AddFile(file);
-         le->AddFile(file);
-         d->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_antinumu/antinu_antinumu_%i/antinu_antinumu_%i_lookupreco_12in.root",i,i);
-         f2->AddFile(file);
-         le2->AddFile(file);
-         d2->AddFile(file);
-         file=Form("/data/hyperk/wchsandbox_reco/flav_antinue/antinu_antinue_%i/antinu_antinue_%i_lookupreco_12in.root",i,i);
-         f->AddFile(file);
-         le->AddFile(file);
-         d->AddFile(file);
+      TString flavs[4] = {"numu","nue","antinumu","antinue"};
+      TString hcs[4] = {"nu","antinu"};
+      for(int k=0; k<2; k++){
+         const char * h = hcs[k].Data();
+         for (int j = 0; j < 4; j++) {
+            const char *s = flavs[j].Data();
+            for (int i = 1000; i < 1100; i++) {
+               //Missing vector files for antinu mode:
+               if (k == 1 && j == 0 && (i == 1096 || i==1037)) continue;
+               if (k == 1 && j == 1 && (i == 1017 || i == 1053)) continue;
+               if (k == 1 && j == 2 && i == 1078) continue;
+               if (k == 1 && j == 3 && (i == 1018 || i == 1019 || i == 1053)) continue;
+               char *file = Form("/data/hyperk/wchsandbox_reco/flav_%s/%s_%s_%i/%s_%s_%i_lookupreco_12in.root", s, h, s, i, h, s,i);
+               if(j%2==1){
+                  f->AddFile(file);
+                  le->AddFile(file);
+                  d->AddFile(file);
+               }
+               else{
+                  f2->AddFile(file);
+                  le2->AddFile(file);
+                  d2->AddFile(file);
+               }
+            }
+         }
       }
       f->AddFriend(le);
       f->AddFriend(f);
@@ -227,32 +214,30 @@ void EnergyLookups::Init(TTree *tree, TTree *tree2)
    fCurrent2 = -1;
    fChain2->SetMakeClass(1);
 
-   fChain->SetBranchAddress("nSubEvts", &nSubEvts, &b_nSubEvts);
+   fChain->SetBranchAddress("nSubevents", &nSubEvts, &b_nSubEvts);
    fChain->SetBranchAddress("isHighE", isHighE, &b_isHighE);
-   fChain->SetBranchAddress("peak1nPEs", peak1nPEs, &b_peak1nPEs);
+   fChain->SetBranchAddress("ringPEs", ringPEs, &b_ringPEs);
    fChain->SetBranchAddress("trueKE", &trueKE, &b_trueKE);
    fChain->SetBranchAddress("diffVtxX", &diffVtxX, &b_diffVtxX);
    fChain->SetBranchAddress("diffVtxY", &diffVtxY, &b_diffVtxY);
    fChain->SetBranchAddress("diffVtxZ", &diffVtxZ, &b_diffVtxZ);
    fChain->SetBranchAddress("mode", &mode, &b_mode);
-   fChain->SetBranchAddress("recoVtxX", recoVtxX, &b_recoVtxX);
-   fChain->SetBranchAddress("recoVtxY", recoVtxY, &b_recoVtxY);
-   fChain->SetBranchAddress("recoVtxZ", recoVtxZ, &b_recoVtxZ);
+   fChain->SetBranchAddress("recoToWall", recoToWall, &b_recoToWall);
+   fChain->SetBranchAddress("recoDWall", recoDWall, &b_recoDWall);
    fChain->SetBranchAddress("recoDirX", recoDirX, &b_recoDirX);
    fChain->SetBranchAddress("recoDirY", recoDirY, &b_recoDirY);
    fChain->SetBranchAddress("recoDirZ", recoDirZ, &b_recoDirZ);
 
-   fChain2->SetBranchAddress("nSubEvts", &nSubEvts2, &b_nSubEvts2);
+   fChain2->SetBranchAddress("nSubevents", &nSubEvts2, &b_nSubEvts2);
    fChain2->SetBranchAddress("isHighE", isHighE2, &b_isHighE2);
-   fChain2->SetBranchAddress("peak1nPEs", peak1nPEs2, &b_peak1nPEs2);
+   fChain2->SetBranchAddress("ringPEs", ringPEs2, &b_ringPEs2);
    fChain2->SetBranchAddress("trueKE", &trueKE2, &b_trueKE2);
    fChain2->SetBranchAddress("diffVtxX", &diffVtxX2, &b_diffVtxX2);
    fChain2->SetBranchAddress("diffVtxY", &diffVtxY2, &b_diffVtxY2);
    fChain2->SetBranchAddress("diffVtxZ", &diffVtxZ2, &b_diffVtxZ2);
    fChain2->SetBranchAddress("mode", &mode2, &b_mode2);
-   fChain2->SetBranchAddress("recoVtxX", recoVtxX2, &b_recoVtxX2);
-   fChain2->SetBranchAddress("recoVtxY", recoVtxY2, &b_recoVtxY2);
-   fChain2->SetBranchAddress("recoVtxZ", recoVtxZ2, &b_recoVtxZ2);
+   fChain2->SetBranchAddress("recoToWall", recoToWall2, &b_recoToWall2);
+   fChain2->SetBranchAddress("recoDWall", recoDWall2, &b_recoDWall2);
    fChain2->SetBranchAddress("recoDirX", recoDirX2, &b_recoDirX2);
    fChain2->SetBranchAddress("recoDirY", recoDirY2, &b_recoDirY2);
    fChain2->SetBranchAddress("recoDirZ", recoDirZ2, &b_recoDirZ2);

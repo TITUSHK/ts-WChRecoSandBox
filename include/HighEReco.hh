@@ -55,7 +55,7 @@ public:
     double ElectronLnLikelihood(const double *par);
     double MuonLnLikelihood(const double *par);
     double FullTimeOfFlight(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, double cherenkovAngle);
-    double ExpectedPMTPhotoelectrons(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu, double * expectedTime);
+    double ExpectedPMTPhotoelectrons(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu, double * expectedTime = 0);
 
 private:
 
@@ -64,7 +64,7 @@ private:
     double PointChkvAngle(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt);
     double TrackChkvAngle(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, double tof);
     double PMTlnLikelihood(double vtxX, double vtxY, double vtxZ, double dirX, double dirY, double dirZ, int pmt, bool isHit, double kineticEnergy, int ipnu);
-    double LnLikelihood(const double *par, int ipnu, bool total);
+    double LnLikelihood(const double *par, int ipnu, bool total, bool print);
     double ElectronLnLikelihoodTotal(const double *par);
     double MuonLnLikelihoodTotal(const double *par);
     double ElectronLnLikelihood2(const double *par);
