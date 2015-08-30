@@ -42,7 +42,8 @@ public:
 
     HighEReco();
     ~HighEReco();
-    int FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double * thetaPeaks, double * phiPeaks, int * ringPEs, int maxRings, bool useTrack = true);
+    int FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double *thetaPeaks, double *phiPeaks,
+                             int *ringPEs, int maxRings, bool useTrack, int*hough);
     TH3D *FindTracks(double vtxX, double vtxY, double vtxZ);
     void PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &cherenkovAngle);
     void TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, double &recoT, double &recoDirPhi,
@@ -67,9 +68,8 @@ private:
     double LnLikelihood(const double *par, int ipnu, bool total, bool print);
     double ElectronLnLikelihoodTotal(const double *par);
     double MuonLnLikelihoodTotal(const double *par);
-    double ElectronLnLikelihood2(const double *par);
-    double MuonLnLikelihood2(const double *par);
-    int FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, double &thetaPeak, double &phiPeak, int ringNumber = 1, bool useTrack = true);
+    int FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, double &thetaPeak, double &phiPeak,
+                            int ringNumber, bool useTrack, int *hough);
 
 ClassDef(HighEReco,0)
 

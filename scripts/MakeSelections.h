@@ -305,7 +305,7 @@ MakeSelections::MakeSelections(bool isAntiNu, TTree *tree, TTree *tracker) : fCh
             if(isAntiNu && j==1 && (i==1017 || i==1053)) continue;
             if(isAntiNu && j==2 && i==1078) continue;
             if(isAntiNu && j==3 && (i==1018 || i==1019 || i==1053)) continue;
-            char *file = Form("/data/hyperk/wchsandbox_reco/flav_%s/%s_%s_%i/%s_%s_%i_12in_reco.root", s, a, s, i, a, s, i);
+            char *file = Form("/data/hyperk/wchsandbox_reco/flav_%s/%s_%s_%i/%s_%s_%i_12in_reco_4.root", s, a, s, i, a, s, i);
             f->AddFile(file,1000);
             le->AddFile(file,1000);
             hee->AddFile(file,1000);
@@ -388,7 +388,7 @@ void MakeSelections::Init(TTree *tree, TTree *tracker)
 
    fChain->SetBranchAddress("evt", &evt, &b_evt);
 //   fChain->SetBranchAddress("nClusters", &nClusters, &b_nClusters);
-//   fChain->SetBranchAddress("nSubevents", &nSubevents, &b_nSubevents);
+   fChain->SetBranchAddress("nSubevents", &nSubevents, &b_nSubevents);
 //   fChain->SetBranchAddress("cluster", cluster, &b_cluster);
 
    fChain->SetBranchAddress("ring", ring, &b_ring);

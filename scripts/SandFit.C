@@ -350,6 +350,7 @@ void SandFit(TString filename = "out.root",
     //double recoExpectedPEHighEElectron[maxSubEvts][maxPMT];
     int observedPE[maxSubEvts][maxPMT];
     int allPE[maxSubEvts][maxPMT];
+    int houghSpace[maxSubEvts][2500];
     //int ring1PE[maxSubEvts][maxPMT];
     //int ring2PE[maxSubEvts][maxPMT];
     double trueToWall;
@@ -423,6 +424,7 @@ void SandFit(TString filename = "out.root",
     DebugTree->Branch("recoExpectedPEHighEElectron",recoExpectedPEHighEElectron,"recoExpectedPEHighEElectron[nSubevents]/D");
     DebugTree->Branch("observedPE",observedPE,Form("observedPE[nSubevents][%i]/I",totalPMTs));
     DebugTree->Branch("allPE",allPE,Form("allPE[nClusters][%i]/I",totalPMTs));
+    DebugTree->Branch("houghSpace",houghSpace[0],"houghSpace[2500]/I");
 //    DebugTree->Branch("ring1PE",ring1PE,Form("ring1PE[nSubevents][%i]/I",totalPMTs));
 //    DebugTree->Branch("ring2PE",ring2PE,Form("ring2PE[nSubevents][%i]/I",totalPMTs));
     DebugTree->Branch("trueToWall",&trueToWall,"trueToWall/D");
@@ -725,8 +727,8 @@ void SandFit(TString filename = "out.root",
             double *peakTheta = new double[maxRings];
             double *peakPhi = new double[maxRings];
             int * ringPE = new int[maxRings];
-            recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent],recoVtxY[subevent],recoVtxZ[subevent],recoTime[subevent],
-                                                       peakTheta,peakPhi,ringPE,maxRings);
+            recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent], recoVtxY[subevent], recoVtxZ[subevent],
+                                                       recoTime[subevent], peakTheta, peakPhi, ringPE, maxRings, false,houghSpace[iCluster]);
 
             nSubevents += recoNRings[iCluster]-1;
             if(nSubevents > maxSubEvts) nSubevents=maxSubEvts;
@@ -759,7 +761,7 @@ void SandFit(TString filename = "out.root",
                 recoChkvAngle[subevent+iRing] = recoChkvAngle[subevent];
                 for(int iPMT=0; iPMT<totalPMTs; iPMT++) observedPE[subevent+iRing][iPMT] = 0;
             }
-            ringPE[0] = clusterPEs;
+            //ringPE[0] = clusterPEs;
             for(int iRing = 0; iRing < recoNRings[iCluster]; iRing++, subevent++){
                 ringPEs[subevent] = ringPE[iRing];
                 double recoDirTheta = peakTheta[iRing];
@@ -776,7 +778,7 @@ void SandFit(TString filename = "out.root",
 //                cout << iRing << " " << ringPEs[subevent] << ":" << endl;
                 int nPEnew = 0;
                 for (int iPE = 0; iPE < clusterPEs; iPE++) {
-                    if (highEReco.hitRing[iPE] != iRing+1 && iRing>0) continue;
+                    if (highEReco.hitRing[iPE] != iRing+1/* && iRing>0*/) continue;
 //                    cout << iPE << " " << nPEnew << endl;
                     newHitT[nPEnew] = clusterHitT[iPE];
                     newHitPMT[nPEnew] = clusterHitPMT[iPE];

@@ -216,9 +216,8 @@ TH3D* HighEReco::FindTracks(double vtxX, double vtxY, double vtxZ){
 }
 
 // Find rings by assuming photons emitted at cherenkov angle from vertex
-int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
-                        double &thetaPeak, double &phiPeak,
-                        int ringNumber, bool useTrack){
+int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, double &thetaPeak, double &phiPeak,
+                        int ringNumber, bool useTrack, int *hough) {
     double cherenkovAngle = TMath::ACos(1.0/N_REF);
     double sinChkvAngle = TMath::Sin(cherenkovAngle);
     double cosChkvAngle = TMath::Cos(cherenkovAngle);
@@ -226,7 +225,6 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
     const int nBins = 2500;
     double theta[nBins];
     double phi[nBins];
-    Int_t * count = new int[nBins];
     //Distribute bins evenly around unit sphere using spiral method
     //Calculate shift to correct for end bins covering larger area
     double shift = 0.5;
@@ -241,11 +239,13 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
     double dz = 2.0/(nBins-shift); //Change in z=cos(theta) for consecutive bins
     double s = TMath::Sqrt(4* TMath::Pi()/(nBins-shift)); //Approx distance between bins
     double sOverdz = s/dz;
+    bool isSaved = hough !=0;
+    if(!isSaved) hough = new int[2500];
     //Calculate theta and phi position of each bin according to position on spiral
     for(int iBin=0; iBin<nBins; iBin++){
         theta[iBin] = TMath::ACos(1-dz*(iBin+0.5*(1-shift)));
         phi[iBin] = fmod(theta[iBin]*sOverdz+ TMath::Pi(), TMath::TwoPi())- TMath::Pi();
-        count[iBin] = 0;
+        hough[iBin] = 0;
     }
     // Loop over PEs to add circle of possible directions for each PE
     for(int iPE=0; iPE<nPEs; iPE++){
@@ -307,7 +307,7 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
             int bin = (int) ((1.0- TMath::Cos(binTheta))/dz+0.5*shift);
             //if(bin==prevBin) continue;
             // Add to bin
-            count[bin]++;
+            hough[bin]++;
             //prevBin=bin;
         }
     }
@@ -315,9 +315,9 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
     int peakBin = 0;
     int peakCount = 0;
     for(int iBin=0; iBin<nBins; iBin++){
-        if(count[iBin]>peakCount){
+        if(hough[iBin]>peakCount){
             peakBin=iBin;
-            peakCount=count[iBin];
+            peakCount= hough[iBin];
         }
     }
     thetaPeak = theta[peakBin];
@@ -341,20 +341,24 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT,
 
 //  TGraph2D *gr = new TGraph2D();
 //  for(int iBin=0; iBin<nBins; iBin++)
-//    gr->SetPoint(iBin,phi[iBin],theta[iBin],count[iBin]);
+//    gr->SetPoint(iBin,phi[iBin],theta[iBin],hough[iBin]);
 //  return gr;
-    delete[] count;
+    if(!isSaved) delete[] hough;
     return nRingPEs;
 }
 
-int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double* thetaPeaks, double* phiPeaks, int* ringPEs, int maxRings, bool useTrack) {
+int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double *thetaPeaks, double *phiPeaks,
+                         int *ringPEs, int maxRings, bool useTrack, int*hough) {
     double * tmpThetaPeaks = new double[maxRings];
     double * tmpPhiPeaks = new double[maxRings];
     int * tmpRingPEs = new int[maxRings];
     //Keep looking for rings until few enough PEs in next ring
     int nrings;
+    int *saveHough = hough;
     for(nrings=0; nrings<maxRings; nrings++){
-        tmpRingPEs[nrings]=FindRing(vtxX,vtxY,vtxZ,vtxT,tmpThetaPeaks[nrings],tmpPhiPeaks[nrings],nrings+1,useTrack);
+        tmpRingPEs[nrings]= FindRing(vtxX, vtxY, vtxZ, vtxT, tmpThetaPeaks[nrings], tmpPhiPeaks[nrings], nrings + 1,
+                                     useTrack, saveHough);
+        saveHough = 0;
         if(tmpRingPEs[nrings]<0.09*tmpRingPEs[0]) break;
     }
 
@@ -757,7 +761,7 @@ void HighEReco::LikelihoodFit(double &trackCorrection, double &recoVtxX, double 
     minimizer->FixVariable(6);
     minimizer->FixVariable(7);
     //Perform fit
-//    minimizer->Minimize();
+//ls    minimizer->Minimize();
 //    minimizer->ReleaseVariable(7);
 //    minimizer->Minimize();
     minimizer->ReleaseVariable(5);
