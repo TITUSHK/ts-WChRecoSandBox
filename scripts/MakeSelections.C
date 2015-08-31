@@ -76,19 +76,27 @@ void MakeSelections::Loop()
       nb = GetEntry(jentry);   nbytes += nb;
       // if (Cut(ientry) < 0) continue;
       if(!isHighE[0]) continue;
-      if(recoNRings[0]>1) continue;
-      double dWallZ = 1100-TMath::Abs(recoVtxZ[0]);
+      if(recoNRings[0] != 1) continue;
+      Int_t pid = recoLnLHighEMuon[0] - recoLnLHighEMuon[0] > -200 ? 13 : 11;
+      Double_t recoKE = pid==13 ? recoEnergyHighEMuon[0] : recoEnergyHighEElectron[0];
+      if(recoKE < 100) continue;
+      if(recoKE > 2500) continue;
+      Double_t vtxZ = pid==13 ? recoVtxZHighEMuon[0] : recoVtxZHighEElectron[0];
+      double dWallZ = 1100-TMath::Abs(vtxZ);
       if(dWallZ < 100) continue;
-      double recoVtxR2 = recoVtxX[0]*recoVtxX[0]+recoVtxY[0]*recoVtxY[0];
+      Double_t vtxX = pid==13 ? recoVtxXHighEMuon[0] : recoVtxXHighEElectron[0];
+      Double_t vtxY = pid==13 ? recoVtxYHighEMuon[0] : recoVtxYHighEElectron[0];
+      double recoVtxR2 = vtxX * vtxX + vtxY * vtxY;
       double dWallR = 550-TMath::Sqrt(recoVtxR2);
       if(dWallR < 100) continue;
       
       double mn = 939;
-      double ml = recoPID[0]==13 ? 105 : 0.511;
-      double recoE = recoEnergy[0]+ ml;
+      double ml = pid ==13 ? 105 : 0.511;
+      double recoE = recoKE + ml;
       double recoP = TMath::Sqrt(recoE*recoE- ml * ml);
-      Erec = (mn*recoE- ml * ml /2.)/(mn-recoE+recoP*recoDirZ[0]);
-      if(Erec > 2000 || Erec < 0) continue;
+      Double_t dirZ = pid==13 ? recoDirZHighEMuon[0] : recoDirZHighEElectron[0];
+      Erec = (mn*recoE- ml * ml /2.)/(mn-recoE+recoP* dirZ);
+      if(Erec > 2500 || Erec < 0) continue;
       Etrue = TMath::Sqrt(NEpvc[0][0]*NEpvc[0][0]+NEpvc[0][1]*NEpvc[0][1]+NEpvc[0][2]*NEpvc[0][2]);
       for(int i=0; i<NEnvc; i++) {
          Abspvc[i] = TMath::Sqrt(NEpvc[i][0]*NEpvc[i][0] + NEpvc[i][1]*NEpvc[i][1] + NEpvc[i][2]*NEpvc[i][2]);
@@ -201,11 +209,13 @@ void MakeSelections::Loop()
       }
        */
       //std::cout << jentry << " " << NEipvc[0] << std::endl;
-      double a = 1-recoDirZ[0]*recoDirZ[0];
-      double b = recoVtxX[0]*recoDirX[0]+recoVtxY[0]*recoDirY[0];
+      double a = 1- dirZ * dirZ;
+      Double_t dirX = pid==13 ? recoDirXHighEMuon[0] : recoDirXHighEElectron[0];
+      Double_t dirY = pid==13 ? recoDirYHighEMuon[0] : recoDirYHighEElectron[0];
+      double b = vtxX * dirX + vtxY * dirY;
       double c = recoVtxR2-550*550;
       double recoToWallR = (TMath::Sqrt(b*b-a*c)-b)/a;
-      double recoToWallZ = 1100 - recoVtxZ[0]*TMath::Abs(recoDirZ[0]);
+      double recoToWallZ = 1100 - vtxZ *TMath::Abs(dirZ);
       double recoToWall = recoToWallR<recoToWallZ ? recoToWallR : recoToWallZ;
       bool neutron_tag = false;
 /*      for(int iSubevent = 0; iSubevent< nSubevents && !neutron_tag; iSubevent++){
@@ -214,10 +224,16 @@ void MakeSelections::Loop()
             neutron_tag = true;
       }
 */
-      for(int ineutron = 0; ineutron<neutronCount && !neutron_tag; ineutron++)
-         if(rand.Rndm()<0.85) neutron_tag=true;
+      for(int iSubevent = 0; iSubevent < nSubevents; iSubevent ++) {
+         if (recoEnergy[iSubevent] > 2 && recoEnergy[iSubevent] < 10 && recoTime[iSubevent] > 1000 && recoTime[iSubevent] < 100000) {
+            neutron_tag = true;
+            break;
+         }
+      }
+      bool muLike = pid==13 && recoKE > 200 && recoKE < 2000 && Erec < 1250;
+      bool eLike = pid==11;
       if(neutron_tag) {
-         if (recoPID[0] == 13 && recoToWall > 200 && recoEnergy[0] > 200 && recoEnergy[0] < 1000) {
+         if (muLike) {
             if (NEipvc[0] == 14)
                numu_mulike_ntag->Fill();
             else if (NEipvc[0] == -14)
@@ -227,7 +243,7 @@ void MakeSelections::Loop()
             else if (NEipvc[0] == -12)
                nuebar_mulike_ntag->Fill();
          }
-         else if (recoPID[0] == 11 && recoToWall > 150 && recoEnergy[0] > 250 && recoEnergy[0] < 1000) {
+         else if (eLike) {
             if (NEipvc[0] == 14)
                numu_elike_ntag->Fill();
             else if (NEipvc[0] == -14)
@@ -239,7 +255,7 @@ void MakeSelections::Loop()
          }
       }
       else {
-         if (recoPID[0] == 13 && recoToWall > 200 && recoEnergy[0] > 200 && recoEnergy[0] < 1000) {
+         if (muLike) {
             if (NEipvc[0] == 14)
                numu_mulike_nontag->Fill();
             else if (NEipvc[0] == -14)
@@ -249,7 +265,7 @@ void MakeSelections::Loop()
             else if (NEipvc[0] == -12)
                nuebar_mulike_nontag->Fill();
          }
-         else if (recoPID[0] == 11 && recoToWall > 150 && recoEnergy[0] > 250 && recoEnergy[0] < 1000) {
+         else if (eLike) {
             if (NEipvc[0] == 14)
                numu_elike_nontag->Fill();
             else if (NEipvc[0] == -14)

@@ -4,12 +4,80 @@
 #include <iostream>
 #include "../include/WCLTreeWriter.hh"
 #include "../include/SandBoxPMTcoverage.hh"
+#include "darkPulseHelpers.h"
 
 using namespace std;
 
-void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="../../generatorcardfile.root",TString outfilename="out.root")
+void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="../../generatorcardfile.root",TString outfilename="out.root", string sizeSetting = "default", double darkRate = 3000.)
 {
   //gSystem->Load("../lib/libWCLAnalysis.so");
+  
+	//Check the size setting the user has chosen against the list of possibilities
+	const int numSizeSettings = 5;
+	string sizeSettings[numSizeSettings] = {"default", "8in", "10inHQE", "12in", "20in"};
+	int sizeChosen = -1;
+	for(int s = 0; s < numSizeSettings; s++){
+		if(sizeSetting == sizeSettings[s]) sizeChosen = s;
+	}
+	if(sizeChosen == -1){
+		cout << "Your choice of size setting did not match any of the options.\n";
+		cout << "The options are;";
+		for(int s = 0; s < numSizeSettings; s++) cout << " " << sizeSettings[s];
+		cout << "\nUsing default." << endl;
+		sizeChosen = 0;
+	}
+	//Create and set all the variables that depend on the size chosen
+	// set the time resolution
+	double tResPMT;
+	double tResLAPPD; //Although is dosn't vary here there is sugestion that it may in the future.
+	// set the quantum efficiency
+	double QE_PMT;
+	double QE_LAPPD;// ^ likewise
+	//set the PMT size
+	double sizePMT;
+	double sizeLAPPD;// ^ likewise
+	// set the presence of LAPPDs
+	bool LAPPDs; // ^ likewise
+	if(sizeChosen == 0){  //default
+		tResPMT = 2.5;
+		tResLAPPD = 0.1;
+		QE_PMT = 22.;
+		QE_LAPPD = 22.;
+		sizePMT = 304.8;
+		sizeLAPPD = 203.2;
+		LAPPDs = false;
+	}else if(sizeChosen == 1){  //8 inch
+		tResPMT = 2.;
+		tResLAPPD = 0.1;
+		QE_PMT = 22.;
+		QE_LAPPD = 22.;
+		sizePMT = 203.2;
+		sizeLAPPD = 203.2;
+		LAPPDs = false;
+	}else if(sizeChosen == 2){  //10 inch HQE
+		tResPMT = 1.5;
+		tResLAPPD = 0.1;
+		QE_PMT = 30.;
+		QE_LAPPD = 22.;
+		sizePMT = 254.0;
+		sizeLAPPD = 203.2;
+		LAPPDs = false;
+	}else if(sizeChosen == 3){  //20 inch
+		tResPMT = 2.;
+		tResLAPPD = 0.1;
+		QE_PMT = 22.;
+		QE_LAPPD = 22.;
+		sizePMT = 508.0;
+		sizeLAPPD = 203.2;
+		LAPPDs = false;
+	}else{
+		cout << "This size setting has not been fully set up.\n";
+		cout << "Go to PhotonMask.C and extend the if-else statement to include the new setting.\n";
+		cout << "Mask will now terminate." << endl;
+		return;
+	}
+	
+	
 
   //************************************************************//
   //								//
@@ -54,8 +122,7 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
   // set the option: 0=TITUS, 1=ANNIE
   int opt = 0;
 
-  // set the presence of LAPPDs
-  bool LAPPDs = false;
+  // set the presence of LAPPDs -> Now set according to size settings. (see abouve)
 
   // set the dimensions of the detector.
   double Rdet = 5500.;
@@ -63,19 +130,17 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
   double LdetCube = 3000.;
   double Ldet;
 
-  // set the time resolution
-  double tResPMT = 2.5;
-  double tResLAPPD = 0.1;
+  // set the time resolution -> Now set according to size settings. (see abouve)
   // set the quantum efficiency
-  double QE_PMT = 22.;
-  double QE_LAPPD = 22.;
+  //QE_PMT is set according to size settings. (see abouve)
+  //QE_LAPPD ^ likewise
   double QE_Wavelengths[20] = {280., 300., 320., 340., 360., 380., 400., 420., 440., 460., 480., 500., 520., 540., 560., 580., 600., 620., 640., 660.};
   double QE_Factor[20] = {0.00, .066, .405, .801, .962, .976, 1., .957, .899, .791, .664, .550, .382, .205, .126, .069, .036, .024, .007, 0.00};
   // double the QE if true because WChSandbox divide by 2 the number of photons
   bool QEset = true;
   // set the size of the detectors
-  double sizePMT = 304.8;
-  double sizeLAPPD = 203.2;
+  //sizePMT is set according to size settings. (see abouve)
+  //sizeLAPPD ^ likewise
   double Sdet;
   // set the PMT coverage
   double cover = 40.;
@@ -108,6 +173,19 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
     QE_PMT = QE_PMT*2.;
     QE_LAPPD = QE_LAPPD*2.;
   }
+  
+  //Dark Noise ------------------------------------------------------------------------------------
+  //There are several ways we could consider the event window
+  //Dark noise will be started in negative time 5200 ns before events
+  //We will Then consider a 5200 nano second window and 
+  //cut anything after that
+  //The length of time over which we generate dark noise
+  double eventWindowStart = -5200.;
+  double eventWindowEnd = 5200.;
+  //This is the maximum number of dark pulse hits per pmt per time window
+  //Needs to be large enough that it will only very rarely be reached.
+  int maxNumHits = 10;
+  //---------------------------------------------------------------------------------------------- 
 
   // SANDBOXPMTCOVERAGE
   //**********************************************************
@@ -153,6 +231,41 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
   double * pmtXs = new double[maxNpmts];
   double * pmtYs = new double[maxNpmts];
   double * pmtZs = new double[maxNpmts];
+  
+  //Dark noise-------------------------------------------------------------------------------------
+  //Set up some variables
+  double eventWindowLength = eventWindowEnd - eventWindowStart;
+  //In order to generate dark pulse we will need this array
+  //Diffrent PMTs have diffrent dark pulse rates, consider them possibility 1,2,3 etc
+  //As we seem to have PMTs and LAPPDs we have 2 different rates for now
+  int numDifferentRates = 2;
+  double * darkPulseRates = new double[numDifferentRates];
+  darkPulseRates[0] = darkRate;//This is a user input
+  cout << "PMT dark rate is " << darkRate << endl;
+  darkPulseRates[1] = 2000.0;//For LAPPD 
+  // ^ LAPPDs are currently not used, could add a second input for DN if that changes
+  
+  //each with a corrisponding cumulative probablity set
+  //(for a better explanation see the cumulativeProbs function)
+  //First dimension = which dark pulse rate 
+  //Second dimension = cumulative probablilities for this dark pulse rate
+  double ** cumulativeRateProbs = new double*[numDifferentRates];
+  //Pre-calculate the probablilities
+  //This should be faster than doing it per event
+  for(int r = 0; r < numDifferentRates; r++){
+    cumulativeRateProbs[r] = cumulativeProbs(darkPulseRates[r], eventWindowLength, maxNumHits);
+  }
+  // Notes which of the possible dark pulse rate each PMT enjoys
+  int * pmtRateType = new int[maxNpmts];
+  //At the moment it seems that all the pmts are either PMTs of LAPPDs
+  //If we have combinations, this 'for' loop will need to change
+  for(int i = 0; i < maxNpmts; i++){
+    pmtRateType[i] = LAPPDs ? 1 : 0;
+  }	
+  //Gets used later
+  int * numPulsesPmts = new int[maxNpmts];
+  //-----------------------------------------------------------------------------------------------    
+  
   int nPMT = 0;
   double size = LAPPDs ? sizeLAPPD : sizePMT;
   double qe = LAPPDs ? QE_LAPPD : QE_PMT;
@@ -177,7 +290,7 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
           pmtYs[nPMT]=pmtY;
           pmtZs[nPMT]=pmtZ;
           pmtIDs[nPMT++]=pmtID;
-//          cout << pmtID << " " << row << " " << col << " (" << hitPMTx << ", " << hitPMTy << ", " << hitPMTz << ")" << endl;
+//          cout << pmtID << " " << row << " " << col << " (" << pmtX << ", " << pmtY << ", " << pmtZ << ")" << endl;
         }
       }
     }
@@ -196,7 +309,7 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
           pmtYs[nPMT]=pmtY;
           pmtZs[nPMT]=pmtZ;
           pmtIDs[nPMT++]=pmtID;
-//          cout << pmtID << " " << row << " " << col << " (" << hitPMTx << ", " << hitPMTy << ", " << hitPMTz << ")" << endl;
+//          cout << pmtID << " " << row << " " << col << " (" << pmtX << ", " << pmtY << ", " << pmtZ << ")" << endl;
         }
       }
     }
@@ -216,7 +329,7 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
           pmtYs[nPMT]=pmtY;
           pmtZs[nPMT]=pmtZ;
         pmtIDs[nPMT++]=pmtID;
-//        cout << pmtID << " " << row << " " << col << " (" << hitPMTx << ", " << hitPMTy << ", " << hitPMTz << ")" << endl;
+//        cout << pmtID << " " << row << " " << col << " (" << pmtX << ", " << pmtY << ", " << pmtZ << ")" << endl;
       }
     }
   }
@@ -251,7 +364,6 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
 
     // Load the event variables into TreeReader
     mTR->LoadEvent(i);
-
     /// grab the relevant variables from the TreeReader event
 //    Int_t* phot_isScat = mTR->get_phot_isScat();
 //    Int_t* phot_processStart = mTR->get_phot_processStart();
@@ -271,8 +383,8 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
     //Intialize a new event
     mTW->InitializeEvent();
     //Add all of the information from the event, except for the photon hits
-    mTW->AddWholeBranches(mTR,0,0,1,1,1);
-
+    mTW->AddWholeBranches(mTR,0,1,1,1,1);
+		
     //Loop over photons to add those which hit a PMT or LAPPD
     int nphot = mTR->get_nphot();
     for(int k=0; k<nphot; k++){
@@ -327,12 +439,28 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
         }
       }*/
 
-      int WhichDet = sbPMT->isActiveHit(xE, yE, zE, wl, PMTid, LAPPDs); // 0=none, 1=PMT, 2=LAPPD
+      int WhichDet = sbPMT->isActiveHit(xE, yE, zE, wl, PMTid, LAPPDs); // 0=none, 1=PMT, 2=LAPPD << this comment dosn't make sense, LAPPDs is a bool
+      double timeRes=0;
       if(WhichDet==0)
         continue;
-      double timeRes=WhichDet==1 ? tResPMT : tResLAPPD;
+      //if the photon lands on a PMT
+      if(WhichDet==1){
+        timeRes = tResPMT;
+      }
+      //if the photon lands on a LAPPD
+      if(WhichDet==2){
+        timeRes = tResLAPPD;
+      }
 //      isHit=2;
-      double hitTime = numberp.Gaus(tE,timeRes);
+     	double hitTime = numberp.Gaus(tE,timeRes);
+      //Dark noise ------------------------------------------------------------------------------
+      //Decide if this event is after the eventWindowEnd
+      if(hitTime > eventWindowEnd){
+        //If so then this event is too late and we should skip to the next itteration
+        continue;
+      }
+      //-----------------------------------------------------------------------------------------      
+
       int hitPMT = 0;
       while(pmtIDs[hitPMT]!=PMTid)
         hitPMT++;
@@ -341,9 +469,34 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
 //      if(fabs(pmtZs[hitPMT]-zE)>size/2.) cout << "Bad Z " << PMTid << " " << pmtZs[hitPMT] << " " << zE << endl;
       mTW->AddHit(hitTime, pmtXs[hitPMT], pmtYs[hitPMT], pmtZs[hitPMT], hitPMT);
     }
+    //Dark noise--------------------------------------------------------------------------------
+    //Get the number of dark pulses for each pmt
+    for(int j = 0; j < nPMT; j++){
+      numPulsesPmts[j] = numPulses(cumulativeRateProbs[pmtRateType[j]], maxNumHits);
+    }
+    //Creates the dark pulse Hits, spread randomly in the time window
+    //Loop over the pmts that actualy exist (less than maxNpmts)
+    for(int p = 0; p < nPMT; p++){
+      //Loop over the hits for this pmt
+      for(int h = 0; h < numPulsesPmts[p]; h++){
+        double darkHitTime = randomTime(eventWindowStart, eventWindowEnd);
+        mTW->AddHit(darkHitTime, pmtXs[p], pmtYs[p], pmtZs[p], p); 
+      }
+    }
+    
+    //---------------------------------------------------------------------------------------------
     mTW->FillEvent();
   }
   mTW->WriteTreeToFile();
   delete mTW;
+  
+  //Clean up
+  delete pmtIDs;
+  delete pmtXs;
+  delete pmtYs;
+  delete pmtZs;
+  delete darkPulseRates;
+  delete cumulativeRateProbs;
+  delete numPulsesPmts;  
   return;
 }

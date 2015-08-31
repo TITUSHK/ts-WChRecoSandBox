@@ -622,8 +622,9 @@ void RecoForLookup(TString filename = "out.root",
                 double *peakTheta = new double[maxRings];
                 double *peakPhi = new double[maxRings];
                 int *ringPE = new int[maxRings];
-                recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent],recoVtxY[subevent],recoVtxZ[subevent],recoTime[subevent],
-                                                           peakTheta, peakPhi, ringPE, maxRings);
+                recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent], recoVtxY[subevent], recoVtxZ[subevent],
+                                                           recoTime[subevent], peakTheta, peakPhi, ringPE, maxRings,
+                                                           false, new int[nBins]);
 
                 nSubevents += recoNRings[iCluster] - 1;
                 if (nSubevents > maxSubEvts) nSubevents = maxSubEvts;

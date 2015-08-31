@@ -406,7 +406,7 @@ void LikelihoodGenerator::Loop2(int start,int end){
     double QE_Wavelengths[20] = {280., 300., 320., 340., 360., 380., 400., 420., 440., 460., 480., 500., 520., 540., 560., 580., 600., 620., 640., 660.};
     double QE_Factor[20] = {0.00, .066, .405, .801, .962, .976, 1., .957, .899, .791, .664, .550, .382, .205, .126, .069, .036, .024, .007, 0.00};
     for(int iphot=0; iphot<nphot; iphot+=n){ // +=n so fewer photons are used to reduce time
-      if(phot_tEnd[iphot]>150) continue;
+      if(phot_tEnd[iphot]>100) continue;
 //      if(phot_parentid[iphot] != 1) continue;
       if(phot_wavelength[iphot]<QE_Wavelengths[0]) continue;
       if(phot_wavelength[iphot]>QE_Wavelengths[19]) continue;

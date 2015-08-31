@@ -12,8 +12,8 @@ Load the libWCLAnalysis.so and run macros in ROOT
 
 
 To run the reconstruction there are two steps:
-1. Photon mask
-2. Event reconstruction
+ 1. Photon mask
+ 2. Event reconstruction
 
 
 
@@ -22,9 +22,13 @@ Select photons from WChSandBox output which are detected according to detector c
 void PhotonMask(
   TString filename,     // path to WChSandBox FullEvent.root file
   TString genfilename,  // path to WChSandBox generatorcardfile.root file
-  TStraing outfilename  // path to photon mask output file
+  TString outfilename  // path to photon mask output file
+  string sizeSetting    //choice of PMT type to be used
+  double darkRate       //the dark pulse rate per PMT in Hz
 )
 Values at start of script should be modified according to detector configuration
+sizeSetting currently has options;
+ "default", "8in", "10inHQE", "12in", "20in"
 
 
 Event Reconstruction: scripts/SandFit.C
@@ -60,14 +64,11 @@ then use these files with scripts/EnergyLookups.C
 
 Known limitations / planned improvements:
 
-- Currently the photon mask accepts all photons with wavelength in the range 300-600nm. We plan to update this to adjust the QE according to wavelength.
+ - The time of detection of a hit on a PMT is simply as a gaussian centred around the true time, with no accounting for multiple photons arriving at a PMT close in time (they will be treated as each producing one photoelectron, with individually smeared detection times).
+ 
+ - The ring searching assumes all photonelectrons are part of an identified ring if they are detected by a PMT at a time within twice the timing resolution of the PMT. This has not been optimised and the factor of 2 probably needs tuning to improve ring counting performance.
+ 
+ - The energy reconstruction is currently based off a simple lookup dependant on total number of photoelectrons, reconstructed distance from the tank wall, energy, and particle hypothesis. This should be improved by including in the likelihood fit. To do this, the likelihood should be changed from multinomial to poisson (code already exists but is commented out) and some fix is needed for a bias causing energy to be reconstructed too low - probably due to how photoelectrons are removed at the ring counting stage if not considered part of the found ring.
+ 
+ - If there are multiple rings for an event which has enough hits to be passed to the high-E chain, but the ring itself does not have enough hits, it may be better to reconstruct using the low-E reconstruction tools, but currently it is still treated as high-E.
 
-- The time of detection of a hit on a PMT is simply as a gaussian centred around the true time, with no accounting for multiple photons arriving at a PMT close in time (they will be treated as each producing one photoelectron, with individually smeared detection times).
-
-- The ring searching assumes all photonelectrons are part of an identified ring if they are detected by a PMT at a time within twice the timing resolution of the PMT. This has not been optimised and the factor of 2 probably needs tuning to improve ring counting performance.
-
-- There is a bias in the position of the vertex in the direction of the track which is corrected for before the likelihood fit. This does not affect the final reconstructed vertex position but since the correction is after the ring searching, the bias may limit its performance.
-
-- The energy reconstruction is currently based off a simple lookup dependant on total number of photoelectrons, reconstructed distance from the tank wall, energy, and particle hypothesis. This should be improved by including in the likelihood fit, however the normalisation of the number of photoelectrons expected in the likelihood tables does not seem to be correct so the energy cannot currently be left as a free parameter. For the same reason the likelihood fit uses only the proportion of hits at each PMT and not the actual number observed.
-
-- If there are multiple rings for an event which has enough hits to be passed to the high-E chain, but the ring itself does not have enough hits, it should be reconstructed using the low-E reconstruction tools, but currently it is still treated as high-E.
