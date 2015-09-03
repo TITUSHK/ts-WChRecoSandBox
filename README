@@ -5,10 +5,9 @@ Reconstruction for TITUS
 To build:
 In WChSandBox directory
  source setupLite.sh
-In analysis directory
+In WChRecoSandBox directory
  make
-Load the libWCLAnalysis.so and run macros in ROOT
-
+Load the WChRecoSandBox/lib/libWCLAnalysis.so and run macros
 
 
 To run the reconstruction there are two steps:
@@ -66,7 +65,7 @@ Known limitations / planned improvements:
 
  - The time of detection of a hit on a PMT is simply as a gaussian centred around the true time, with no accounting for multiple photons arriving at a PMT close in time (they will be treated as each producing one photoelectron, with individually smeared detection times).
  
- - The ring searching assumes all photonelectrons are part of an identified ring if they are detected by a PMT at a time within twice the timing resolution of the PMT. This has not been optimised and the factor of 2 probably needs tuning to improve ring counting performance.
+ - The ring searching assumes all photonelectrons are part of an identified ring if they are detected by a PMT at a time within twice the timing resolution of the PMT. This probably needs more tuning to improve ring counting performance.
  
  - The energy reconstruction is currently based off a simple lookup dependant on total number of photoelectrons, reconstructed distance from the tank wall, energy, and particle hypothesis. This should be improved by including in the likelihood fit. To do this, the likelihood should be changed from multinomial to poisson (code already exists but is commented out) and some fix is needed for a bias causing energy to be reconstructed too low - probably due to how photoelectrons are removed at the ring counting stage if not considered part of the found ring.
  
