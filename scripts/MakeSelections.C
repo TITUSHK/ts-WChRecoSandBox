@@ -77,7 +77,7 @@ void MakeSelections::Loop()
       // if (Cut(ientry) < 0) continue;
       if(!isHighE[0]) continue;
       if(recoNRings[0] != 1) continue;
-      Int_t pid = recoLnLHighEMuon[0] - recoLnLHighEMuon[0] > -200 ? 13 : 11;
+      Int_t pid = (recoLnLHighEMuon[0] - recoLnLHighEElectron[0] > -200) ? 13 : 11;
       Double_t recoKE = pid==13 ? recoEnergyHighEMuon[0] : recoEnergyHighEElectron[0];
       if(recoKE < 100) continue;
       if(recoKE > 2500) continue;

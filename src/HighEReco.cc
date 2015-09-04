@@ -21,7 +21,7 @@ HighEReco::~HighEReco()
 
 const double HighEReco::C_VAC = 29.9792458;
 const double HighEReco::N_REF = 1.34;
-const double HighEReco::factor = 1.;
+//const double HighEReco::factor = 1.;
 const double HighEReco::C_WAT = C_VAC/N_REF;
 const double HighEReco::multiRingFactor = 0.09;
 
@@ -30,16 +30,26 @@ const double HighEReco::multiRingFactor = 0.09;
 // timesOfFlight : array of TOF calculated for each PMT
 // time          : time of interaction (mean correctedTime is used if time < -999)
 
-double HighEReco::Goodness(const double *timesOfFlight, double time){
+double HighEReco::Goodness(const double *timesOfFlight, double time, double factor, int ring) {
     // Loop to calculate PE times corrected for TOF to PMT
-    double *correctedTimes = new double[nPEs];
-    for(int iPE=0; iPE<nPEs; iPE++)
+    int nRingPEs = 0;
+    for(int iPE=0; iPE<nPEs; iPE++) if(hitRing[iPE]>=ring) nRingPEs++;
+    double * ringHitT = new double[nRingPEs];
+    int * ringHitPMT = new int[nRingPEs];
+    double *correctedTimes = new double[nRingPEs];
+    for(int iPE=0, iPE2=0; iPE<nPEs; iPE++){
+        if(hitRing[iPE]<ring) continue;
+        ringHitT[iPE2] = hitT[iPE];
+        ringHitPMT[iPE2] = hitPMT[iPE];
+        iPE2++;
+    }
+    for(int iPE=0; iPE<nRingPEs; iPE++)
     {
-        int pmt = hitPMT[iPE];
-        correctedTimes[iPE] = hitT[iPE]-timesOfFlight[pmt];
+        int pmt = ringHitPMT[iPE];
+        correctedTimes[iPE] = ringHitT[iPE]-timesOfFlight[pmt];
     }
     if(time < -999){
-        for(int iPE=0; iPE<nPEs; iPE++)
+        for(int iPE=0; iPE<nRingPEs; iPE++)
             time += correctedTimes[iPE];
         time /= nPEs;
     }
@@ -47,10 +57,12 @@ double HighEReco::Goodness(const double *timesOfFlight, double time){
 
     // Sum over PEs to get goodness
     double result = 0;
-    for(int iPE=0; iPE<nPEs; iPE++)
+    for(int iPE=0; iPE<nRingPEs; iPE++)
     {
-        result += TMath::Exp(-0.5* TMath::Power((correctedTimes[iPE]-time)/(factor*tRes),2));
+        result += TMath::Exp(-0.5* TMath::Power((correctedTimes[iPE]-time)/(factor *tRes),2));
     }
+    delete[] ringHitT;
+    delete[] ringHitPMT;
     delete[] correctedTimes;
     return result/nPEs;
 }
@@ -111,7 +123,7 @@ double HighEReco::TrackChkvAngle(double vtxX, double vtxY, double vtxZ, double d
 }
 
 //Goodness of fit for point fitter
-double HighEReco::PointGoodness(const double *par){
+double HighEReco::PointBadness(const double *par){
     double vtxZ = par[0];
     double vtxY = par[1];
     double vtxX = par[2];
@@ -121,13 +133,17 @@ double HighEReco::PointGoodness(const double *par){
     double* timesOfFlight = new double[nHitPMT];
     for(int iPMT=0; iPMT< nHitPMT; iPMT++)
         timesOfFlight[iPMT] = PointTimeOfFlight(vtxX, vtxY, vtxZ, iPMT);
-    double result = Goodness(timesOfFlight,0);
+    double result = Goodness(timesOfFlight);
     delete[] timesOfFlight;
     return -result; //negative for minimise not maximise
 }
 
 // Goodness of fit including the track length for given vertex and direction
-double HighEReco::TrackGoodness(const double *par){
+double HighEReco::TrackBadness(const double *par) {
+    return -TrackGoodness(par); //negative for minimise not maximise
+}
+
+double HighEReco::TrackGoodness(const double *par, int ring, double factor) {
     double vtxZ = par[4];
     double vtxY = par[5];
     double vtxX = par[6];
@@ -145,11 +161,11 @@ double HighEReco::TrackGoodness(const double *par){
     // Loop to find expected time of flight from vertex to PMT for given Cherenkov angle
     for(int iPMT=0; iPMT< nHitPMT; iPMT++)
         timesOfFlight[iPMT] = FullTimeOfFlight(vtxX, vtxY, vtxZ, dirX, dirY, dirZ, iPMT, cherenkovAngle);
-    double result = Goodness(timesOfFlight, time);
+    double result = Goodness(timesOfFlight, time, factor, ring);
     //Penalise cherenkov angles far from 42 deg
     delete[] timesOfFlight;
     //cout << vtxX << " " << vtxY << " " << vtxZ << " " << time << " " << dirCosTheta << " " << dirPhi << " " << cherenkovAngle << " " << nHitPMT << " " << result << endl;
-    return -result; //negative for minimise not maximise
+    return result;
 }
 
 TH3D* HighEReco::FindTracks(double vtxX, double vtxY, double vtxZ){
@@ -217,11 +233,10 @@ TH3D* HighEReco::FindTracks(double vtxX, double vtxY, double vtxZ){
 
 // Find rings by assuming photons emitted at cherenkov angle from vertex
 int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, double &thetaPeak, double &phiPeak,
-                        int ringNumber, bool useTrack, int *hough) {
+                        int ringNumber, bool useTrack, double *hough) {
     double cherenkovAngle = TMath::ACos(1.0/N_REF);
     double sinChkvAngle = TMath::Sin(cherenkovAngle);
     double cosChkvAngle = TMath::Cos(cherenkovAngle);
-    double A = (N_REF-cosChkvAngle)/sinChkvAngle; //See below for explanation of use
     const int nBins = 2500;
     double theta[nBins];
     double phi[nBins];
@@ -240,13 +255,19 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, doub
     double s = TMath::Sqrt(4* TMath::Pi()/(nBins-shift)); //Approx distance between bins
     double sOverdz = s/dz;
     bool isSaved = hough !=0;
-    if(!isSaved) hough = new int[2500];
+    if(!isSaved) hough = new double[nBins];
     //Calculate theta and phi position of each bin according to position on spiral
+    double par[7] = {vtxT,cherenkovAngle,0,0,vtxZ,vtxY,vtxX};
     for(int iBin=0; iBin<nBins; iBin++){
-        theta[iBin] = TMath::ACos(1-dz*(iBin+0.5*(1-shift)));
+        double cosTheta = 1-dz*(iBin+0.5*(1-shift));
+        theta[iBin] = TMath::ACos(cosTheta);
         phi[iBin] = fmod(theta[iBin]*sOverdz+ TMath::Pi(), TMath::TwoPi())- TMath::Pi();
-        hough[iBin] = 0;
+        par[2] = cosTheta;
+        par[3] = phi[iBin];
+        hough[iBin] = 0;//TrackGoodness(par, ringNumber, 0.1);
     }
+
+
     // Loop over PEs to add circle of possible directions for each PE
     for(int iPE=0; iPE<nPEs; iPE++){
         if(hitRing[iPE]<ringNumber) continue; //ignore PEs identified as part of previous ring
@@ -262,17 +283,14 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, doub
         //Otherwise, use track calculation
         if(useTrack){
             //To find angle, solve TOF equation for alpha:
-            //  t=d/(c*sin(thetaC)) * (sin(thetaC - alpha) + n_ref*sin(alpha))
+            //  t=d*sin(thetaC - alpha)/(c*sin(thetaC)) + d*n_ref*sin(alpha)/(c*sin(thetaC))
             //Solution is:
-            //  tan(alpha)=(A-B*sqrt(A^2-B^2+1))/(B^2-A^2)
-            //where
-            //  A=(n_ref-cos(thetaC))/sin(thetaC)
-            //  B=c*t/d
-            double B = C_VAC*(hitT[iPE]-vtxT)/pmtDist;
-            // Must have B>1 and A^2-B^2+1>0 for physical solution.
-            if(B<1 || A*A-B*B+1<0)
-                continue;
-            pmtTrackAngle= TMath::ATan((A-B* TMath::Sqrt(A*A-B*B+1))/(B*B-A*A));
+            //  alpha = thetaC - acos(ct/(n_ref*d))
+            //for solution, require t<n_ref*d/c
+            //if t>n_ref*d/c, not Cherenkov light or reco time is wrong
+            double A = C_VAC*(hitT[iPE]-vtxT)/(N_REF*pmtDist);
+            if(A<1)
+                pmtTrackAngle -= TMath::ACos(A);
         }
 
         //For single PMT PE with fixed pmtTrackAngle there is circle of possible directions
@@ -311,9 +329,10 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, doub
             //prevBin=bin;
         }
     }
+
     //Find peak (just use bin with highest value)
     int peakBin = 0;
-    int peakCount = 0;
+    double peakCount = 0;
     for(int iBin=0; iBin<nBins; iBin++){
         if(hough[iBin]>peakCount){
             peakBin=iBin;
@@ -348,13 +367,13 @@ int HighEReco::FindRing(double vtxX, double vtxY, double vtxZ, double vtxT, doub
 }
 
 int HighEReco::FindRings(double vtxX, double vtxY, double vtxZ, double vtxT, double *thetaPeaks, double *phiPeaks,
-                         int *ringPEs, int maxRings, bool useTrack, int*hough) {
+                         int *ringPEs, int maxRings, bool useTrack, double *hough) {
     double * tmpThetaPeaks = new double[maxRings];
     double * tmpPhiPeaks = new double[maxRings];
     int * tmpRingPEs = new int[maxRings];
     //Keep looking for rings until few enough PEs in next ring
     int nrings;
-    int *saveHough = hough;
+    double *saveHough = hough;
     for(nrings=0; nrings<maxRings; nrings++){
         tmpRingPEs[nrings]= FindRing(vtxX, vtxY, vtxZ, vtxT, tmpThetaPeaks[nrings], tmpPhiPeaks[nrings], nrings + 1,
                                      useTrack, saveHough);
@@ -608,8 +627,8 @@ void HighEReco::PointFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, d
     minimizer->SetMaxFunctionCalls(1000000);
     minimizer->SetTolerance(0.0001);
     minimizer->SetPrintLevel(0);
-    //ROOT::Math::GradFunctor f(&PointGoodness, &PointGoodnessDeriv, 4);
-    ROOT::Math::Functor f(this, &HighEReco::PointGoodness, 3);
+    //ROOT::Math::GradFunctor f(&PointBadness, &PointGoodnessDeriv, 4);
+    ROOT::Math::Functor f(this, &HighEReco::PointBadness, 3);
     minimizer->SetFunction(f);
     minimizer->SetLimitedVariable(0,"vtxZ",recoVtxZ,1,-1100,1100);
     minimizer->SetLimitedVariable(1,"vtxY",recoVtxY,1,-550,550);
@@ -657,7 +676,7 @@ void HighEReco::TrackFit(double &recoVtxX, double &recoVtxY, double &recoVtxZ, d
     minimizer->SetMaxFunctionCalls(1000000);
     minimizer->SetTolerance(0.0001);
     minimizer->SetPrintLevel(0);
-    ROOT::Math::Functor f2(this,&HighEReco::TrackGoodness,7);
+    ROOT::Math::Functor f2(this,&HighEReco::TrackBadness,7);
     minimizer->SetFunction(f2);
     cout<<"Init vtx: ("<<recoVtxX<<" "<<recoVtxY<<" "<<recoVtxZ<<") t:" << recoT
     << " dir: ("<< TMath::Sin(recoDirTheta)* TMath::Cos(recoDirPhi)<<" "<< TMath::Sin(recoDirTheta)* TMath::Sin(recoDirPhi)<<" "<<
