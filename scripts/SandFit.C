@@ -350,7 +350,7 @@ void SandFit(TString filename = "out.root",
     //double recoExpectedPEHighEElectron[maxSubEvts][maxPMT];
     int observedPE[maxSubEvts][maxPMT];
     int allPE[maxSubEvts][maxPMT];
-    int houghSpace[maxSubEvts][2500];
+    double houghSpace[2500];
     //int ring1PE[maxSubEvts][maxPMT];
     //int ring2PE[maxSubEvts][maxPMT];
     double trueToWall;
@@ -424,7 +424,7 @@ void SandFit(TString filename = "out.root",
     DebugTree->Branch("recoExpectedPEHighEElectron",recoExpectedPEHighEElectron,"recoExpectedPEHighEElectron[nSubevents]/D");
     DebugTree->Branch("observedPE",observedPE,Form("observedPE[nSubevents][%i]/I",totalPMTs));
     DebugTree->Branch("allPE",allPE,Form("allPE[nClusters][%i]/I",totalPMTs));
-    DebugTree->Branch("houghSpace",houghSpace[0],"houghSpace[2500]/I");
+    DebugTree->Branch("houghSpace",houghSpace,"houghSpace[2500]/D");
 //    DebugTree->Branch("ring1PE",ring1PE,Form("ring1PE[nSubevents][%i]/I",totalPMTs));
 //    DebugTree->Branch("ring2PE",ring2PE,Form("ring2PE[nSubevents][%i]/I",totalPMTs));
     DebugTree->Branch("trueToWall",&trueToWall,"trueToWall/D");
@@ -727,8 +727,10 @@ void SandFit(TString filename = "out.root",
             double *peakTheta = new double[maxRings];
             double *peakPhi = new double[maxRings];
             int * ringPE = new int[maxRings];
+            double * hough = iCluster==0 ? houghSpace : 0;
             recoNRings[iCluster] = highEReco.FindRings(recoVtxX[subevent], recoVtxY[subevent], recoVtxZ[subevent],
-                                                       recoTime[subevent], peakTheta, peakPhi, ringPE, maxRings, false,houghSpace[iCluster]);
+                                                       recoTime[subevent], peakTheta, peakPhi, ringPE, maxRings, false,
+                                                       hough);
 
             nSubevents += recoNRings[iCluster]-1;
             if(nSubevents > maxSubEvts) nSubevents=maxSubEvts;
@@ -764,6 +766,7 @@ void SandFit(TString filename = "out.root",
             //ringPE[0] = clusterPEs;
             for(int iRing = 0; iRing < recoNRings[iCluster]; iRing++, subevent++){
                 ringPEs[subevent] = ringPE[iRing];
+                cluster[subevent] = iCluster;
                 double recoDirTheta = peakTheta[iRing];
                 double recoDirCosTheta = TMath::Cos(recoDirTheta);
                 double recoDirPhi = peakPhi[iRing];
