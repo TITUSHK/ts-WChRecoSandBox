@@ -1094,11 +1094,11 @@ void SandFit(TString filename = "out.root",
         recoToWall = recoToWallR<recoToWallZ ? recoToWallR : recoToWallZ;
         cout << "True vtx: (" << trueVtxX << "," << trueVtxY << "," << trueVtxZ << ")  time: " << trueTime
              << "  dir: (" << trueDirX << "," << trueDirY << "," << trueDirZ << ")  Energy:" << trueKE << endl;
-        cout << "Reco vtx: (" << recoVtxX[0] << "," << recoVtxY[0] << "," << recoVtxZ[0] << ")  time: " << recoTime[0]
+	 cout << "Reco vtx: (" << recoVtxX[0] << "," << recoVtxY[0] << "," << recoVtxZ[0] << ")  time: " << recoTime[0]
         << "  dir: (" << recoDirX[0] << "," << recoDirY[0] << "," << recoDirZ[0] << ")  Energy:" << recoEnergy[0] << endl;
         cout << "Diff vtx: (" << diffVtxX << "," << diffVtxY << "," << diffVtxZ << ")  time: " << diffTime
         << "  dir: (" << diffDirX << "," << diffDirY << "," << diffDirZ << ")  Energy:" << diffKE << endl;
-        cout << "Diff vtx abs: " << diffVtxAbs << "     Diff dir abs: " << diffDirAbs*180./TMath::Pi() << endl << endl;
+	//  cout << "Diff vtx abs: " << diffVtxAbs << "     Diff dir abs: " << diffDirAbs*180./TMath::Pi() << endl << endl;
         LowETree->Fill();
         HighEElectronTree->Fill();
         HighEMuonTree->Fill();

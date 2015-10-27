@@ -2,12 +2,12 @@
 #include "TMath.h"
 #include <iomanip>
 #include <iostream>
-#include "../include/WCLTreeWriter.hh"
-#include "../include/SandBoxPMTcoverage.hh"
+#include "./include/WCLTreeWriter.hh"
+#include "./include/SandBoxPMTcoverage.hh"
 
 using namespace std;
 
-void PhotonMask_12in(TString filename="../../FullEvent.root", TString genfilename="../../generatorcardfile.root",TString outfilename="out.root")
+void PhotonMask_12in(TString filename="../ts-WChSandBox/FullEvent.root", TString genfilename="../ts-WChSandBox/generatorcardfile.root",TString outfilename="out.root")
 {
   //gSystem->Load("../lib/libWCLAnalysis.so");
 
