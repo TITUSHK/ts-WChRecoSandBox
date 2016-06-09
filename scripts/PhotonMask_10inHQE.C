@@ -93,12 +93,17 @@ void PhotonMask_10inHQE(TString filename="../../FullEvent.root", TString genfile
 
   if(shapePMT==0) Sdet=3.14*sizePMT*sizePMT/4;
   if(shapePMT==1) Sdet=sizePMT*sizePMT;
-  double Ntot = (Rdet*Rdet*3.14+LdetCylinder*2*Rdet*3.14)/Sdet*cover/100;
+  double SEndcap = Rdet*Rdet*3.14;
+  double SBarrel = LdetCylinder*2*Rdet*3.14;
+  double Stot = 2*SEndcap+SBarrel;
+  double Ntot = (Stot/Sdet)*(cover/100);
   if(opt==0) {
-    NFront = (int) (sqrt(0.8*Ntot/3.14)-fmod(sqrt(0.8*Ntot/3.14),1));
-    NBack = (int) (sqrt(0.8*Ntot/3.14)-fmod(sqrt(0.8*Ntot/3.14),1));
-    NcolCurve = (int) (sqrt(0.4*3.14*Ntot)-fmod(sqrt(0.4*3.14*Ntot),1));
-    NrowCurve = (int) ((0.8*Ntot/NcolCurve)-fmod(0.8*Ntot/NcolCurve,1));
+      double NEndcap = (SEndcap/Stot)*Ntot;
+      NFront = (int) (2*sqrt(NEndcap/3.14) + 0.5);
+      NBack = NFront;
+      double NBarrel = (SBarrel/Stot)*Ntot;
+      NcolCurve = (int) (sqrt(NBarrel*2*Rdet*3.14/LdetCylinder) + 0.5);
+      NrowCurve = (int) (NBarrel/NcolCurve + 0.5);
   }
   if(opt==1) {
     NbyN = (int) (sqrt(Ntot/6)-fmod(sqrt(Ntot/6),1));
