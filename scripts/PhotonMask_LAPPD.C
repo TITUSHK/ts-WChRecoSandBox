@@ -91,18 +91,18 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
   // set the number of PMTs in each wall for the option=1.
   int NbyN = 5;
 
-  if(shapePMT==0) Sdet=3.14*sizePMT*sizePMT/4;
+  if(shapePMT==0) Sdet=TMath::Pi()*sizePMT*sizePMT/4;
   if(shapePMT==1) Sdet=sizePMT*sizePMT;
-  double SEndcap = Rdet*Rdet*3.14;
-  double SBarrel = LdetCylinder*2*Rdet*3.14;
+  double SEndcap = Rdet*Rdet*TMath::Pi();
+  double SBarrel = LdetCylinder*2*Rdet*TMath::Pi();
   double Stot = 2*SEndcap+SBarrel;
   double Ntot = (Stot/Sdet)*(cover/100);
   if(opt==0) {
       double NEndcap = (SEndcap/Stot)*Ntot;
-      NFront = (int) (2*sqrt(NEndcap/3.14) + 0.5);
+      NFront = (int) (2*sqrt(NEndcap/TMath::Pi()) + 0.5);
       NBack = NFront;
       double NBarrel = (SBarrel/Stot)*Ntot;
-      NcolCurve = (int) (sqrt(NBarrel*2*Rdet*3.14/LdetCylinder) + 0.5);
+      NcolCurve = (int) (sqrt(NBarrel*2*Rdet*TMath::Pi()/LdetCylinder) + 0.5);
       NrowCurve = (int) (NBarrel/NcolCurve + 0.5);
   }
   if(opt==1) {
@@ -207,12 +207,12 @@ void PhotonMask(TString filename="../../FullEvent.root", TString genfilename="..
     }
     //Barrel
     lrow = Ldet/NrowCurve;
-    lcol = (2.*3.1416)/NcolCurve;
+    lcol = (2.*TMath::Pi())/NcolCurve;
     double pmtTheta;
     for(int row = 0; row < NrowCurve; row++){
       pmtZ = -Ldet/2.+lrow*(row+0.5);
       for(int col = 0; col < NcolCurve; col++){
-        pmtTheta = -3.1416+lcol*(col+0.5);
+        pmtTheta = -TMath::Pi()+lcol*(col+0.5);
         pmtX = Rdet*TMath::Cos(pmtTheta);
         pmtY = Rdet*TMath::Sin(pmtTheta);
         pmtID = (row - (NrowCurve/2)) + (col - (NcolCurve/2))*100;
