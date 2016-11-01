@@ -60,7 +60,7 @@ double LowEReco::ReconstructEnergy(int nphot, const Double_t *phot_xEnd, const D
     }
 
     double reconstructedE = (nphot2*1.25 - constant)/gradient;//reconstructed E
-    std::cout<<"Energy: "<< reconstructedE <<std::endl;
+    //std::cout<<"Energy: "<< reconstructedE <<std::endl;
     return reconstructedE;
 }
 
@@ -351,11 +351,11 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
     }
 
 
-    std::cout<<"Photon filtering for event #"<<evt<<" has just finished. fDigits are ready."<<std::endl;
+    //std::cout<<"Photon filtering for event #"<<evt<<" has just finished. fDigits are ready."<<std::endl;
 
     //input digits
     mRec->SetDigits(fDigitX, fDigitY, fDigitZ, fDigitT, fDigitQ, fDigitPE, fDigitW, fDigitV, fDelta, vSeedDigitList);
-    std::cout << "vSeedDigitList:" << vSeedDigitList.size() << std::endl;
+    //std::cout << "vSeedDigitList:" << vSeedDigitList.size() << std::endl;
 
     if(vSeedDigitList.size()==0) return;
 
@@ -369,7 +369,7 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
 
     //now select the best vertex and save reco data
     int best_seed = mRec->SelectBestSeed();
-    std::cout<<"best_seed = "<<best_seed<<"  vSeedVtxX.size() = "<<vSeedVtxX.size()<<std::endl;
+    //std::cout<<"best_seed = "<<best_seed<<"  vSeedVtxX.size() = "<<vSeedVtxX.size()<<std::endl;
     if(best_seed == -1) return;
 
 
@@ -546,11 +546,11 @@ void LowEReco::DoLowEReco(int evt, int nhits, double * hitx, double * hity, doub
     // recoangleall->Fill(recoangle->GetMean());
 
 //  std::cout<<"TV!!: "<<trueVtxX<<" "<<trueVtxY<<" "<<trueVtxZ<<std::endl;
-    std::cout<<"RECO: "<<recoVtxX<<" "<<recoVtxY<<" "<<recoVtxZ<<std::endl;
-    std::cout<<"Dir: "<< reconstructedDirX <<" "<< reconstructedDirY <<" "<< reconstructedDirZ <<std::endl;
-    std::cout<<"Angle: "<<allrecoang<<std::endl;
+    //std::cout<<"RECO: "<<recoVtxX<<" "<<recoVtxY<<" "<<recoVtxZ<<std::endl;
+    //std::cout<<"Dir: "<< reconstructedDirX <<" "<< reconstructedDirY <<" "<< reconstructedDirZ <<std::endl;
+    //std::cout<<"Angle: "<<allrecoang<<std::endl;
 
-    std::cout<<"-------------------------"<<std::endl;
+    //std::cout<<"-------------------------"<<std::endl;
 //  reco_out_ntuple->Fill();
 //  } //end i-loop over Hits_Tree entries
 //  f_out.cd();

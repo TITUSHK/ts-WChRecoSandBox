@@ -211,7 +211,7 @@ class WCLTreeReader : public TObject {
   TTree* truetree;
   
   //output text file
-  fstream* textout;
+  char* textout;
 
   ClassDef(WCLTreeReader,0)
     

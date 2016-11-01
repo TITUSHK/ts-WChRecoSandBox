@@ -103,7 +103,7 @@ class WCLTreeWriter : public TObject {
   TTree* pmtTree;
   
   //output text file
-  fstream* textout;
+  char* textout;
 
   ClassDef(WCLTreeWriter,0)
     
